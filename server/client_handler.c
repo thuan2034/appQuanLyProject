@@ -75,6 +75,7 @@ void *client_handler(void *args)
             send(client_sock, response, strlen(response), 0);
             printf("Response: %s\n", response);
             free(projects);
+            projects = NULL;
         }
         memset(client_message, 0, sizeof(client_message));
     }

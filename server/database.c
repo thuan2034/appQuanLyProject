@@ -60,6 +60,7 @@ char *get_projects_list(PGconn *conn, int userID)
         fprintf(stderr, "Memory allocation failed\n");
         return NULL;
     }
+    projects_list[0] = '\0';
     // Build query
     snprintf(query, sizeof(query), "SELECT P.\"projectID\", P.name "
                                    "FROM \"PROJECT\" P "
@@ -76,7 +77,7 @@ char *get_projects_list(PGconn *conn, int userID)
         free(projects_list);
         return NULL;
     }
-    // Start building the projects_list string
+
     // Iterate over each row in the result
     int num_rows = PQntuples(res);
     for (int i = 0; i < num_rows; i++)

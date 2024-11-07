@@ -12,9 +12,9 @@ char message[2048], server_response[2048];
 void handle_registration(char *message, size_t message_size);
 void handle_login(char *message, size_t message_size);
 int is_valid_email(const char *email);
-void fetch_projects_list(char *token);
+void fetch_projects(char *token);
 void menu();
-void home_page(char *token, char *server_response);
+void home_page();
 
 int main()
 {
@@ -37,7 +37,7 @@ int main()
     {   // check if already login (if token is not null)
         if (token[0] != '\0')
         {   
-            home_page(token, server_response);
+            home_page();
         }
         else // when not login yet display menu
         {
@@ -61,13 +61,12 @@ void menu()
         handle_login(message, sizeof(message));
     }
 }
-void home_page(char *token, char *server_response)
+void home_page()
 {   int choice;
     printf("HOME PAGE\n*********************\n");
     printf("Your projects:\n");
-    printf("%s\n", server_response + 56);
-    printf("Enter project ID to view details: ");
     fetch_projects(token);
+    printf("Enter project ID to view details: ");
     scanf("%d", &choice);
 }
 void handle_registration(char *message, size_t message_size)
