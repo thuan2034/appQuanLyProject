@@ -1,0 +1,9 @@
+- database:
+1. Tạo database mới ở pgadmin4
+2. chạy lệnh psql -U your_username -d database_name -f "C:\path\to\your\project_backup.sql" ở terminal
+- server:
+1. Chạy lệnh: make
+2. ./server
+- client:
+1. gcc -o client client.c
+2. ./client
