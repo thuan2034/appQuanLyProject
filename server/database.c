@@ -87,12 +87,191 @@ char *get_projects_list(PGconn *conn, int userID)
         char *name = PQgetvalue(res, i, 1);
         // Append `[projectID,name]` to the projects_list
         strncat(projects_list, "[", 1024 - strlen(projects_list) - 1);
-        strncat(projects_list, projectID,1024 - strlen(projects_list) - 1);
+        strncat(projects_list, projectID, 1024 - strlen(projects_list) - 1);
         strncat(projects_list, " ", 1024 - strlen(projects_list) - 1);
         strncat(projects_list, name, 1024 - strlen(projects_list) - 1);
         strncat(projects_list, "]", 1024 - strlen(projects_list) - 1);
     }
     PQclear(res);
-    printf("Projects: %s\n", projects_list);
+    // printf("Projects: %s\n", projects_list);
     return projects_list;
+}
+char *get_project(PGconn *conn, int userID, int projectID)
+{
+    const char *query =
+        "WITH UserAuthorization AS ("
+        "    SELECT 1 "
+        "    FROM  \"PROJECT_MEMBER\" "
+        "    WHERE \"userID\" = $1 AND \"projectID\" = $2"
+        ") "
+        "SELECT "
+        "    P.\"projectID\", "
+        "    P.name, "
+        "    P.\"ownerID\", "
+        "    P.description "
+        "FROM "
+        "    \"PROJECT\" P "
+        "WHERE "
+        "    P.\"projectID\" = $2 "
+        "    AND EXISTS (SELECT 1 FROM UserAuthorization);";
+
+    // Convert parameters to string
+    char userIDStr[12], projectIDStr[12];
+    snprintf(userIDStr, sizeof(userIDStr), "%d", userID);
+    snprintf(projectIDStr, sizeof(projectIDStr), "%d", projectID);
+
+    // Parameter array
+    const char *paramValues[2] = {userIDStr, projectIDStr};
+
+    // Execute query with parameters
+    PGresult *res = PQexecParams(conn, query, 2, NULL, paramValues, NULL, NULL, 0);
+
+    // Check query result
+    if (PQresultStatus(res) != PGRES_TUPLES_OK)
+    {
+        fprintf(stderr, "Query failed: %s\n", PQerrorMessage(conn));
+        PQclear(res);
+        return NULL;
+    }
+    // Check if project details are returned
+    int rows = PQntuples(res);
+    if (rows == 0)
+    {
+        printf("Not authorized or project not found.\n");
+        return NULL;
+    }
+    else
+    {
+        const char *projectIDStr = PQgetvalue(res, 0, 0); // projectID
+        const char *name = PQgetvalue(res, 0, 1);         // name
+        const char *ownerID = PQgetvalue(res, 0, 2);      // ownerID
+        const char *description = PQgetvalue(res, 0, 3);  // description
+        size_t response_size = 32 + strlen(projectIDStr) + strlen(name) + strlen(ownerID) + strlen(description);
+        char *project = malloc(response_size);
+        if (project == NULL)
+        {
+            fprintf(stderr, "Memory allocation failed!\n");
+            PQclear(res);
+            return project;
+        }
+        project[0] = '\0';
+        // Build the response string
+        snprintf(project, response_size, "<%s><%s><%s><%s>", projectIDStr, name, ownerID, description);
+        printf("%s\n", project);
+        PQclear(res);
+        return project;
+    }
+}
+int create_project(PGconn *conn, int userID, const char *projectName, const char *projectDescription)
+{
+    char query[512];
+    snprintf(query, sizeof(query), "INSERT INTO \"PROJECT\" (name, \"ownerID\", description) VALUES ('%s', %d, '%s') RETURNING \"projectID\"", projectName, userID, projectDescription);
+
+    PGresult *res = PQexec(conn, query);
+    int projectID = -1;
+    // Check the correct result status
+    if (PQresultStatus(res) == PGRES_TUPLES_OK)
+    {
+        projectID = atoi(PQgetvalue(res, 0, 0));
+        printf("Project created with ID: %d\n", projectID);
+    }
+    else
+    {
+        fprintf(stderr, "Error inserting project: %s\n", PQerrorMessage(conn));
+        PQclear(res);
+        return -1; // Return -1 to indicate failure
+    }
+    PQclear(res);
+    // Insert into PROJECT_MEMBER
+    snprintf(query, sizeof(query), "INSERT INTO \"PROJECT_MEMBER\" (\"projectID\", \"userID\") VALUES (%d, %d)", projectID, userID);
+    res = PQexec(conn, query);
+    if (PQresultStatus(res) != PGRES_COMMAND_OK)
+    {
+        fprintf(stderr, "Error inserting into PROJECT_MEMBER: %s\n", PQerrorMessage(conn));
+        PQclear(res);
+        return projectID; // Return -1 to indicate failure
+    }
+    PQclear(res);
+    return projectID; // Return the new project ID
+}
+int insert_project_member(PGconn *conn, int projectID, const char *email)
+{
+    char query[512];
+    int userID = -1;
+    printf("Email: %s\n", email);
+    // Fetch the userID based on email
+    snprintf(query, sizeof(query), "SELECT \"userID\" FROM \"USER\" WHERE email = '%s'", email);
+    PGresult *res = PQexec(conn, query);
+
+    if (PQresultStatus(res) != PGRES_TUPLES_OK || PQntuples(res) == 0)
+    {
+        fprintf(stderr, "Error fetching userID: %s\n", PQerrorMessage(conn));
+        PQclear(res);
+        return -1; // Return -1 to indicate failure
+    }
+
+    // Get the userID from the result
+    userID = atoi(PQgetvalue(res, 0, 0));
+    PQclear(res); // Free the result of the first query
+
+    // Insert into PROJECT_MEMBER
+    snprintf(query, sizeof(query), "INSERT INTO \"PROJECT_MEMBER\" (\"projectID\", \"userID\") VALUES (%d, %d)", projectID, userID);
+    res = PQexec(conn, query);
+
+    if (PQresultStatus(res) != PGRES_COMMAND_OK)
+    {
+        // Check if it's a duplicate key violation
+        const char *errMessage = PQresultErrorMessage(res);
+        if (strstr(errMessage, "duplicate key") != NULL)
+        {
+            printf("User is already a member of the project.\n");
+            PQclear(res);
+            return -1; // Indicate that the user is already a member
+        }
+
+        fprintf(stderr, "Error inserting into PROJECT_MEMBER: %s\n", errMessage);
+        PQclear(res);
+        return -1; // Return -1 for other errors
+    }
+
+    PQclear(res); // Free the result of the second query
+    return 0;     // Return 0 to indicate success
+}
+char *get_tasks(PGconn *conn, int projectID)
+{
+    char query[512];
+    char *tasks = malloc(1024 * sizeof(char));
+    if (tasks == NULL)
+    {
+        fprintf(stderr, "Memory allocation failed\n");
+        return NULL;
+    }
+    tasks[0] = '\0';
+    snprintf(query, sizeof(query), "SELECT \"taskID\", name FROM \"TASK\" WHERE \"projectID\" = %d", projectID);
+    PGresult *res = PQexec(conn, query);
+    if (PQresultStatus(res) != PGRES_TUPLES_OK)
+    {
+        fprintf(stderr, "Error fetching tasks: %s\n", PQerrorMessage(conn));
+        PQclear(res);
+        free(tasks);
+        return NULL;
+    }
+    int num_rows = PQntuples(res);
+    if (num_rows == 0)
+    {
+        PQclear(res);
+        return tasks;
+    }
+    for (int i = 0; i < num_rows; i++)
+    {
+        char *taskID = PQgetvalue(res, i, 0);
+        char *taskName = PQgetvalue(res, i, 1);
+        strncat(tasks, "<", 1024 - strlen(tasks) - 1);
+        strncat(tasks, taskID, 1024 - strlen(tasks) - 1); // Append taskID, 1024 - strlen(tasks) - 1);
+        strncat(tasks, " ", 1024 - strlen(tasks) - 1);
+        strncat(tasks, taskName, 1024 - strlen(tasks) - 1);
+        strncat(tasks, ">", 1024 - strlen(tasks) - 1);
+    }
+    PQclear(res);
+    return tasks;
 }

@@ -51,6 +51,15 @@ void *client_handler(void *args)
                 print_sessions(session_manager);
             }
         }
+        else if (strncmp(client_message, "OUT", 3) == 0)
+        {
+            char token[32];
+            strncpy(token, client_message + 4, sizeof(token) - 1);
+            token[sizeof(token) - 1] = '\0';
+            printf("Token: %s\n", token);
+            remove_session(session_manager, token);
+            print_sessions(session_manager);
+        }
         else if (strncmp(client_message, "PRJ", 3) == 0)
         {
             char token[32];
@@ -65,7 +74,7 @@ void *client_handler(void *args)
             }
             int userID = userSession->userID;
             char response[512];
-            char *projects= get_projects_list(conn, userID);
+            char *projects = get_projects_list(conn, userID);
             if (projects == NULL)
             {
                 send(client_sock, "500 <Internal server error>\n", strlen("500 <Internal server error>\n"), 0);
@@ -76,6 +85,114 @@ void *client_handler(void *args)
             printf("Response: %s\n", response);
             free(projects);
             projects = NULL;
+        }
+        else if (strncmp(client_message, "PRD", 3) == 0)
+        {
+            char token[32];
+            int projectID;
+            sscanf(client_message, "PRD<%d><%s>", &projectID, token);
+            token[sizeof(token) - 1] = '\0';
+            UserSession *userSession = find_session(session_manager, token);
+            if (userSession == NULL)
+            {
+                send(client_sock, "401 <Unauthorized: Invalid token>\n", strlen("401 <Unauthorized: Invalid token>\n"), 0);
+                continue;
+            }
+            int userID = userSession->userID;
+            printf("%d %s\n", projectID, token);
+            char response[2048];
+            char *project = get_project(conn, userID, projectID);
+            if (project == NULL)
+            {
+                send(client_sock, "401 <Not authorized or project not found>\n", strlen("401 <Not authorized or project not found.>\n"), 0);
+                continue;
+            }
+            else
+            {
+                printf("%s\n", project);
+                snprintf(response, sizeof(response), "200 %s\n", project);
+                send(client_sock, response, strlen(response), 0);
+                // printf("Response: %s\n", response);
+                free(project);
+                project = NULL;
+            }
+        }
+        else if (strncmp(client_message, "PRO", 3) == 0)
+        {
+            char token[32], projectName[50], projectDescription[512];
+            sscanf(client_message, "PRO<%[^>]><%[^>]><%[^>]>", projectName, projectDescription, token);
+            token[sizeof(token) - 1] = '\0';
+            UserSession *userSession = find_session(session_manager, token);
+            if (userSession == NULL)
+            {
+                send(client_sock, "401 <Unauthorized: Invalid token>\n", strlen("401 <Unauthorized: Invalid token>\n"), 0);
+                continue;
+            }
+            int userID = userSession->userID;
+            char response[2048];
+            int projectID = create_project(conn, userID, projectName, projectDescription);
+            if (projectID == -1)
+            {
+                send(client_sock, "500 <Internal server error>\n", strlen("500 <Internal server error>\n"), 0);
+                continue;
+            }
+            snprintf(response, sizeof(response), "200 <%d>\n", projectID);
+            send(client_sock, response, strlen(response), 0);
+            // printf("Response: %s\n", response);
+        }
+        else if (strncmp(client_message, "INV", 3) == 0)
+        {
+            char token[32], email[50];
+            int projectID;
+            sscanf(client_message, "INV<%d><%[^>]><%[^>]>", &projectID, email, token);
+            token[sizeof(token) - 1] = '\0';
+            printf("Token: %s\n", token);
+            UserSession *userSession = find_session(session_manager, token);
+            if (userSession == NULL)
+            {
+                send(client_sock, "401 <Unauthorized: Invalid token>\n", strlen("401 <Unauthorized: Invalid token>\n"), 0);
+                continue;
+            }
+            int status = insert_project_member(conn, projectID, email);
+            if (status == -1)
+            {
+                send(client_sock, "500 <Internal server error/Already a member>\n", strlen("500 <Internal server error/Already a member>\n"), 0);
+                continue;
+            }
+
+            send(client_sock, "200 <Invitation sent>\n", strlen("200 <Invitation sent>\n"), 0);
+        }
+        else if (strncmp(client_message, "VTL", 3) == 0)
+        {
+            char token[32];
+            int projectID;
+            sscanf(client_message, "VTL<%d><%[^>]>", &projectID, token);
+            token[sizeof(token) - 1] = '\0';
+            UserSession *userSession = find_session(session_manager, token);
+            if (userSession == NULL)
+            {
+                send(client_sock, "401 <Unauthorized: Invalid token>\n", strlen("401 <Unauthorized: Invalid token>\n"), 0);
+                continue;
+            }
+            char *tasks = get_tasks(conn, projectID);
+            if (tasks == NULL)
+            {
+                send(client_sock, "500 <Internal server error>\n", strlen("500 <Internal server error>\n"), 0);
+                continue;
+            }
+            else if (strlen(tasks) == 0)
+            {
+                send(client_sock, "404 <No tasks found>\n", strlen("404 <No tasks found>\n"), 0);
+                continue;
+            }
+            else
+            {   char response[2048];
+                snprintf(response, sizeof(response), "200 %s\n", tasks);
+                printf("%s\n", tasks);
+                send(client_sock, response, strlen(response), 0);
+            }
+            free(tasks);
+            tasks = NULL;
         }
         memset(client_message, 0, sizeof(client_message));
     }
