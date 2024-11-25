@@ -68,9 +68,9 @@ void menu()
 {
     int choice;
     system("clear");
-    printf("===================================\n");
+    printf("═══════════════════════════════════\n");
     printf("            MAIN MENU              \n");
-    printf("===================================\n");
+    printf("═══════════════════════════════════\n");
     printf("1. Register                        \n");
     printf("2. Login                           \n");
     printf("-----------------------------------\n");
@@ -98,9 +98,9 @@ void home_page()
     int choice;
     int projectID = 0;
     char project_name[50], project_description[512];
-    printf("===============================================================================\n");
+    printf("════════════════════════════════════════════════════════════════════════════════\n");
     printf("                                HOME PAGE                                       \n");
-    printf("===============================================================================\n");
+    printf("════════════════════════════════════════════════════════════════════════════════\n");
     // Fetch and display the list of projects
     fetch_projects_list();
     printf("\nOPTIONS:\n");
@@ -165,9 +165,9 @@ void handle_registration()
 {
     system("clear");
     char username[50], email[50], password[50];
-    printf("===================================\n");
+    printf("═══════════════════════════════════\n");
     printf("           REGISTRATION            \n");
-    printf("===================================\n");
+    printf("═══════════════════════════════════\n");
     // Get username
     printf("Enter username: ");
     fgets(username, sizeof(username), stdin);
@@ -217,9 +217,9 @@ void handle_login()
 {
     system("clear");
     char email[50], password[50];
-    printf("===================================\n");
+    printf("═══════════════════════════════════\n");
     printf("               LOGIN               \n");
-    printf("===================================\n");
+    printf("═══════════════════════════════════\n");
     printf("Enter email: ");
     scanf("%s", email);
     while (!is_valid_email(email))
@@ -241,14 +241,17 @@ void handle_login()
     {
         if (strncmp(server_response, "200", 3) == 0)
         {
-            printf("server_response: %s\n", server_response);
+            printf("✅ %s\n", server_response);
             strncpy(token, server_response + 23, sizeof(token));
             token[sizeof(token) - 1] = '\0';
             // printf("Token: %s\n", token);
         }
         else
         {
-            printf("Server response: %s\n", server_response);
+            printf("❌ %s\n", server_response);
+            char c;
+            getchar();
+            scanf("%c", &c);
         }
     }
     else
@@ -352,7 +355,7 @@ void fetch_projects_list()
         }
         if (project_count == 0)
         {
-            printf("║      ║ No projects available.                    ║\n");
+            printf("║      ║ No projects available.                      ║\n");
             printf("╚══════╩═════════════════════════════════════════════╝\n");
         }
         else
@@ -385,14 +388,14 @@ void handle_view_project(int projectID)
             // Create a formatted string buffer
             char response[2048];
             snprintf(response, sizeof(response),
-                     "=======================================\n"
+                     "═══════════════════════════════════════\n"
                      "          Project Details\n"
-                     "=======================================\n"
+                     "═══════════════════════════════════════\n"
                      "Project ID     : %d\n"
                      "Name           : %s\n"
                      "Created By     : %s\n"
                      "Description    : %s\n"
-                     "=======================================\n",
+                     "═══════════════════════════════════════\n",
                      projectID, projectName, createdBy, description);
 
             // Print the formatted response (or send it as needed)
@@ -402,7 +405,7 @@ void handle_view_project(int projectID)
                 system("clear");
                 printf("%s", response);
                 printf("Enter:\n");
-                printf("1. Go back\n");
+                printf("1. Go back to project list\n");
                 printf("2. View tasks\n");
                 printf("3. Invite member\n");
                 if (scanf("%d", &choice) != 1)
@@ -535,8 +538,8 @@ void handle_view_tasks(int projectID)
                 // If no tasks were found
                 if (task_count == 0)
                 {
-                    printf("║          ║ No tasks available.   ║               ║                         ║\n");
-                    printf("╚══════════╩═══════════════════════╩═══════════════╩═════════════════════════╝\n");
+                    printf("║          ║ No tasks available.   ║              ║                          ║\n");
+                    printf("╚══════════╩═══════════════════════╩══════════════╩══════════════════════════╝\n");
                 }
                 else
                 {
@@ -573,7 +576,7 @@ void handle_view_tasks(int projectID)
                             break;
                         }
                     }
-                    printf("Enter member email: ");
+                    printf("Assign this task to (email/username): ");
                     scanf("%s", member_email);
                     while (!is_valid_email(member_email))
                     {
@@ -593,6 +596,15 @@ void handle_view_tasks(int projectID)
                     }
                     handle_view_one_task(projectID, taskID);
                 }
+            }
+            else
+            {
+                printf("Error: %s\n", server_response);
+                char c;
+                printf("OK?\n");
+                getchar();
+                scanf("%c", &c);
+                break;
             }
         }
     } while (1);
@@ -621,7 +633,7 @@ void handle_add_file(int projectID, int taskID, char *file_path)
 
     if (access(file_path, F_OK) != 0)
     {
-        perror("File does not exist");
+        perror("❌File does not exist");
         char c;
         printf("OK?\n");
         getchar();
@@ -632,7 +644,7 @@ void handle_add_file(int projectID, int taskID, char *file_path)
     FILE *file = fopen(file_path, "rb");
     if (file == NULL)
     {
-        printf("Failed to open file.\n");
+        printf("❌Failed to open file.\n");
         char c;
         printf("OK?\n");
         getchar();
@@ -655,7 +667,7 @@ void handle_add_file(int projectID, int taskID, char *file_path)
     // Validate file type
     if (!is_allowed_file_type(file_path))
     {
-        printf("Unsupported file type. Only text, documents, and images are allowed.\n");
+        printf("❌Unsupported file type. Only text, documents, and images are allowed.\n");
         fclose(file);
         char c;
         printf("OK?\n");
@@ -673,7 +685,7 @@ void handle_add_file(int projectID, int taskID, char *file_path)
     // Wait for server acknowledgment
     char server_response[128];
     memset(server_response, 0, sizeof(server_response));
-    if (recv(sock, server_response, sizeof(server_response), 0) <= 0 || strncmp(server_response, "OK", 2) != 0)
+    if (recv(sock, server_response, sizeof(server_response), 0) <= 0 || strncmp(server_response, "200", 3) != 0)
     {
         printf("Server response: %s\n", server_response);
         printf("Server rejected attachment request.\n");
@@ -692,7 +704,7 @@ void handle_add_file(int projectID, int taskID, char *file_path)
     {
         if (send(sock, buffer, bytes_read, 0) <= 0)
         {
-            perror("Failed to send file data");
+            perror("😢Failed to send file data");
             fclose(file);
             char c;
             printf("OK?\n");
@@ -756,16 +768,16 @@ void handle_view_one_task(int projectID, int taskID)
                     fprintf(stderr, "Error: Unable to parse server response.\n");
                     return;
                 }
-                printf("\n===============================================\n");
+                printf("\n═════════════════════════════════════════════════════════════════════════\n");
                 printf("                  %s\n", taskName);
-                printf("===============================================\n\n");
-                printf("Task ID        : %d\n", taskID);
-                printf("Comment        : %s\n", comment); // Fallback to "No comment" if empty
-                printf("Status         : %s\n", status);
-                printf("Created Time   : %s\n", createTime);
-                printf("Member Email   : %s\n", memberEmail);
-                printf("Files Attached : %s\n", files); // Fallback if empty
-                printf("\n===============================================\n");
+                printf("═════════════════════════════════════════════════════════════════════════\n\n");
+                printf("Task ID         : %d\n", taskID);
+                printf("Comment         : %s\n", comment); // Fallback to "No comment" if empty
+                printf("Status          : %s\n", status);
+                printf("Created Time    : %s\n", createTime);
+                printf("Member Incharge : %s\n", memberEmail);
+                printf("Files Attached  : %s\n", files); // Fallback if empty
+                printf("\n════════════════════════════════════════════════════════════════════════\n");
 
                 int choice;
                 printf("1. Go back to task list\n");

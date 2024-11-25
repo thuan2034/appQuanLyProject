@@ -164,7 +164,7 @@ int create_project(PGconn *conn, int userID, const char *projectName, const char
     if (PQresultStatus(res) == PGRES_TUPLES_OK)
     {
         projectID = atoi(PQgetvalue(res, 0, 0));
-        printf("Project created with ID: %d\n", projectID);
+        // printf("Project created with ID: %d\n", projectID);
     }
     else
     {
@@ -255,6 +255,7 @@ char *get_tasks(PGconn *conn, int projectID)
     if (num_rows == 0)
     {
         PQclear(res);
+        strcat(tasks, "<>");
         return tasks;
     }
     for (int i = 0; i < num_rows; i++)
@@ -302,16 +303,27 @@ int insert_task(PGconn *conn, int projectID, const char *taskName, const char *m
     PQclear(res);
     return 0;
 }
-int attach_file_to_task(PGconn *conn, int taskID, const char *file_name)
+int attach_file_to_task(PGconn *conn, int userID, int taskID, const char *file_name)
 {
     char query[512];
-    snprintf(query, sizeof(query), "INSERT INTO \"ATTACHMENT\" (\"taskID\", file_name) VALUES (%d, '%s')", taskID, file_name);
+    snprintf(query, sizeof(query), "INSERT INTO \"ATTACHMENT\" (\"taskID\", file_name) "
+                                   "SELECT %d, '%s' "
+                                   "WHERE EXISTS ("
+                                   "  SELECT 1 FROM \"TASK\" WHERE \"taskID\" = %d AND \"userID\" = %d"
+                                   ")",
+             taskID, file_name, taskID, userID);
     PGresult *res = PQexec(conn, query);
     if (PQresultStatus(res) != PGRES_COMMAND_OK)
     {
         fprintf(stderr, "Error attaching file to task: %s\n", PQerrorMessage(conn));
         PQclear(res);
         return -1;
+    }
+    if (atoi(PQcmdTuples(res)) == 0)
+    {
+        fprintf(stderr, "No attachment added: userID %d does not own taskID %d\n", userID, taskID);
+        PQclear(res);
+        return -1; // No rows inserted
     }
     PQclear(res);
     return 0;
@@ -347,15 +359,15 @@ char *view_one_task(PGconn *conn, int taskID)
         char *time_created = PQgetvalue(res, 0, 4);
         char *member_email = PQgetvalue(res, 0, 5);
         char *file_names = PQgetvalue(res, 0, 6);
-        if(strlen(file_names) == 0)
+        if (strlen(file_names) == 0)
         {
-            file_names="No files attached";
+            file_names = "No files attached";
         }
         if (strlen(comment) == 0)
         {
             comment = "No comment";
         }
-        
+
         printf("%s\n", comment);
         char *task = malloc(1024);
         if (task == NULL)

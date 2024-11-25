@@ -40,7 +40,7 @@ void *client_handler(void *args)
             int userID = login_user(conn, client_message);
             if (userID == -1)
             {
-                send(client_sock, "401 <Unauthorized: Invalid email or password>\n", strlen("401 <Unauthorized: Invalid email or password>\n"), 0);
+                send(client_sock, "401 <Unauthorized: Invalid email or password>", strlen("401 <Unauthorized: Invalid email or password>"), 0);
             }
             else
             {
@@ -51,7 +51,7 @@ void *client_handler(void *args)
                 // printf("Response: %s\n", response);
                 send(client_sock, response, strlen(response), 0);
                 add_session(session_manager, userID, token);
-                print_sessions(session_manager);
+                // print_sessions(session_manager);
             }
         }
         else if (strncmp(client_message, "OUT", 3) == 0)
@@ -61,7 +61,7 @@ void *client_handler(void *args)
             token[sizeof(token) - 1] = '\0';
             // printf("Token: %s\n", token);
             remove_session(session_manager, token);
-            print_sessions(session_manager);
+            // print_sessions(session_manager);
         }
         else if (strncmp(client_message, "PRJ", 3) == 0)
         {
@@ -107,7 +107,7 @@ void *client_handler(void *args)
             char *project = get_project(conn, userID, projectID);
             if (project == NULL)
             {
-                send(client_sock, "401 <Not authorized or project not found>\n", strlen("401 <Not authorized or project not found.>\n"), 0);
+                send(client_sock, "403 <Not authorized or project not found>\n", strlen("403 <Not authorized or project not found.>\n"), 0);
                 continue;
             }
             else
@@ -159,11 +159,11 @@ void *client_handler(void *args)
             int status = insert_project_member(conn, projectID, email);
             if (status == -1)
             {
-                send(client_sock, "500 <Internal server error/Already a member>\n", strlen("500 <Internal server error/Already a member>\n"), 0);
+                send(client_sock, "404 <User not found>\n", strlen("404 <User not found>\n"), 0);
                 continue;
             }
 
-            send(client_sock, "200 <Invitation sent>\n", strlen("200 <Invitation sent>\n"), 0);
+            send(client_sock, "200 <Invitation successful>\n", strlen("200 <Invitation successful>\n"), 0);
         }
         else if (strncmp(client_message, "VTL", 3) == 0)
         {
@@ -181,11 +181,6 @@ void *client_handler(void *args)
             if (tasks == NULL)
             {
                 send(client_sock, "500 <Internal server error>\n", strlen("500 <Internal server error>\n"), 0);
-                continue;
-            }
-            else if (strlen(tasks) == 0)
-            {
-                send(client_sock, "404 <No tasks found>\n", strlen("404 <No tasks found>\n"), 0);
                 continue;
             }
             else
@@ -214,7 +209,7 @@ void *client_handler(void *args)
             int status = insert_task(conn, projectID, taskName, member_email);
             if (status == -1)
             {
-                send(client_sock, "403 <USER NOT FOUND>\n", strlen("403 <USER NOT FOUND>\n"), 0);
+                send(client_sock, "403 <USER NOT IN PROJECT>\n", strlen("403 <USER NOT IN PROJECT>\n"), 0);
                 continue;
             }
             send(client_sock, "200 <Task created>\n", strlen("200 <Task created>\n"), 0);
@@ -234,7 +229,7 @@ void *client_handler(void *args)
                 send(client_sock, "401 <Unauthorized: Invalid token>\n", strlen("401 <Unauthorized: Invalid token>\n"), 0);
                 continue;
             }
-
+            int userID = userSession->userID;
             // Construct folder path
             char folder_path[256];
             snprintf(folder_path, sizeof(folder_path), "/mnt/e/ThucHanhLapTrinhMang20241/project/refactor/project_manager/%d", projectID);
@@ -256,12 +251,18 @@ void *client_handler(void *args)
             if (file == NULL)
             {
                 perror("Failed to open file");
-                send(client_sock, "500 <Internal Server Error: Cannot open file>\n", strlen("500 <Internal Server Error: Cannot open file>\n"), 0);
+                send(client_sock, "500 <Internal Server Error: Cannot receive file>\n", strlen("500 <Internal Server Error: Cannot receive file>\n"), 0);
                 continue;
             }
-
+            int status = attach_file_to_task(conn, userID, taskID, file_name);
+            if (status == -1)
+            {
+                send(client_sock, "403 <You dont have permission to attach file to this task>\n", strlen("403 <You dont have permission to attach file to this task>\n"), 0);
+                printf("You dont have permission to attach file to this task\n");
+                continue;
+            }
             // Notify client to start sending file data
-            send(client_sock, "OK\n", strlen("OK\n"), 0);
+            send(client_sock, "200 <Ready to receive file>\n", strlen("200 <Ready to receive file>\n"), 0);
 
             // Receive file data from client
             char buffer[1024];
@@ -274,15 +275,6 @@ void *client_handler(void *args)
             }
 
             fclose(file);
-            // printf("File %s saved successfully in %s\n", file_name, folder_path);
-            // Insert attachment information into the database
-            int status = attach_file_to_task(conn, taskID, file_name);
-            if (status == -1)
-            {
-                send(client_sock, "500 <Internal Server Error: Database insertion failed>\n", strlen("500 <Internal Server Error: Database insertion failed>\n"), 0);
-                continue;
-            }
-
             // Confirm success
             send(client_sock, "200 <Attachment added successfully>\n", strlen("200 <Attachment added successfully>\n"), 0);
         }
@@ -301,7 +293,7 @@ void *client_handler(void *args)
             char *task_info = view_one_task(conn, taskID);
             if (task_info == NULL)
             {
-                send(client_sock, "404 <Task not found>\n", strlen("404 <Task not found>\n"), 0);
+                send(client_sock, "404 <Task not found in project>\n", strlen("404 <Task not found in project>\n"), 0);
                 continue;
             }
             send(client_sock, task_info, strlen(task_info), 0);
@@ -311,7 +303,7 @@ void *client_handler(void *args)
         else if (strncmp(client_message, "CMT", 3) == 0)
         {
             char token[32], comment[256];
-            int taskID,userID;
+            int taskID, userID;
             sscanf(client_message, "CMT<%d><%[^>]><%s>", &taskID, comment, token);
             token[sizeof(token) - 1] = '\0';
             UserSession *userSession = find_session(session_manager, token);
@@ -321,7 +313,7 @@ void *client_handler(void *args)
                 continue;
             }
             userID = userSession->userID;
-            int status = add_comment(conn,userID, taskID, comment);
+            int status = add_comment(conn, userID, taskID, comment);
             if (status == -1)
             {
                 send(client_sock, "403 <You don't have permission to add comment to this task>\n", strlen("403 <You don't have permission to add comment to this task>\n"), 0);
