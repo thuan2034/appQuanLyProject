@@ -312,47 +312,48 @@ void fetch_projects_list()
     snprintf(message, sizeof(message), "PRJ<%s>", token);
     send(sock, message, strlen(message), 0);
     // printf("Message sent: %s\n", message);
-    char server_response[2048];
+    char server_response[512];
     memset(server_response, 0, sizeof(server_response));
     int read_size = recv(sock, server_response, sizeof(server_response), 0);
     if (read_size > 0)
     {
-        char *start, *end, *entry;
-        char buffer[256];
-        // Find the start and end of the project list
-        start = strchr(server_response, '<');
-        end = strchr(server_response, '>');
-        // Copy the content inside the '< >' into a buffer
-        strncpy(buffer, start + 1, end - start - 1);
-        buffer[end - start - 1] = '\0'; // Null-terminate the buffer
-        // Tokenize the content by '][' to extract individual project entries
-        entry = strtok(buffer, "[]");
+        char buffer[512]; // Ensure this size is sufficient
+        strncpy(buffer, server_response + 4, sizeof(buffer) - 1);
+        buffer[sizeof(buffer) - 1] = '\0'; // Null-terminate the buffer
+
+        char *entry = strtok(buffer, "<>");
         printf("╔════════════════════════════════════════════════════╗\n");
         printf("║                     PROJECTS LIST                  ║\n");
         printf("╠══════╦═════════════════════════════════════════════╣\n");
         printf("║ ID   ║ Project Name                                ║\n");
         printf("╠══════╬═════════════════════════════════════════════╣\n");
+
         int project_count = 0;
 
         while (entry)
         {
+
             // Parse the project ID and name
             int project_id;
             char project_name[128];
 
             if (sscanf(entry, "%d %[^\n]", &project_id, project_name) == 2)
             {
+                // Successfully parsed project entry
                 printf("║ %-4d ║ %-43s ║\n", project_id, project_name);
                 printf("╠══════╬═════════════════════════════════════════════╣\n");
                 project_count++;
             }
             else
             {
+                // Handle invalid tokens
                 printf("⚠️  Skipping invalid project entry: '%s'\n", entry);
             }
 
-            entry = strtok(NULL, "[]");
+            // Get the next token
+            entry = strtok(NULL, "<>");
         }
+
         if (project_count == 0)
         {
             printf("║      ║ No projects available.                      ║\n");
@@ -576,7 +577,7 @@ void handle_view_tasks(int projectID)
                             break;
                         }
                     }
-                    printf("Assign this task to (email/username): ");
+                    printf("Assign this task to (email): ");
                     scanf("%s", member_email);
                     while (!is_valid_email(member_email))
                     {
@@ -747,7 +748,7 @@ void handle_view_one_task(int projectID, int taskID)
     do
     {
         system("clear");
-        snprintf(message, message_size, "VOT<%d><%s>", taskID, token);
+        snprintf(message, message_size, "VOT<%d><%d><%s>",projectID, taskID, token);
         send(sock, message, strlen(message), 0);
         printf("Message sent: %s\n", message);
         char server_response[2048];

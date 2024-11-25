@@ -83,7 +83,7 @@ void *client_handler(void *args)
                 send(client_sock, "500 <Internal server error>\n", strlen("500 <Internal server error>\n"), 0);
                 continue;
             }
-            snprintf(response, sizeof(response), "200 <%s>\n", projects);
+            snprintf(response, sizeof(response), "200 %s", projects);
             send(client_sock, response, strlen(response), 0);
             // printf("Response: %s\n", response);
             free(projects);
@@ -113,7 +113,7 @@ void *client_handler(void *args)
             else
             {
                 // printf("%s\n", project);
-                snprintf(response, sizeof(response), "200 %s\n", project);
+                snprintf(response, sizeof(response), "200 %s", project);
                 send(client_sock, response, strlen(response), 0);
                 // printf("Response: %s\n", response);
                 free(project);
@@ -139,7 +139,7 @@ void *client_handler(void *args)
                 send(client_sock, "500 <Internal server error>\n", strlen("500 <Internal server error>\n"), 0);
                 continue;
             }
-            snprintf(response, sizeof(response), "200 <%d>\n", projectID);
+            snprintf(response, sizeof(response), "200 <%d>", projectID);
             send(client_sock, response, strlen(response), 0);
             // printf("Response: %s\n", response);
         }
@@ -186,7 +186,7 @@ void *client_handler(void *args)
             else
             {
                 char response[2048];
-                snprintf(response, sizeof(response), "200 %s\n", tasks);
+                snprintf(response, sizeof(response), "200 %s", tasks);
                 // printf("%s\n", tasks);
                 // printf("Response: %s\n", response);
                 send(client_sock, response, strlen(response), 0);
@@ -280,9 +280,9 @@ void *client_handler(void *args)
         }
         else if (strncmp(client_message, "VOT", 3) == 0)
         {
-            int taskID;
+            int taskID, projectID;
             char token[32];
-            sscanf(client_message, "VOT<%d><%s>", &taskID, token);
+            sscanf(client_message, "VOT<%d><%d><%s>",&projectID, &taskID, token);
             token[sizeof(token) - 1] = '\0';
             UserSession *userSession = find_session(session_manager, token);
             if (userSession == NULL)
@@ -290,7 +290,7 @@ void *client_handler(void *args)
                 send(client_sock, "401 <Unauthorized: Invalid token>\n", strlen("401 <Unauthorized: Invalid token>\n"), 0);
                 continue;
             }
-            char *task_info = view_one_task(conn, taskID);
+            char *task_info = view_one_task(conn,projectID, taskID);
             if (task_info == NULL)
             {
                 send(client_sock, "404 <Task not found in project>\n", strlen("404 <Task not found in project>\n"), 0);

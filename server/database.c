@@ -86,11 +86,11 @@ char *get_projects_list(PGconn *conn, int userID)
         char *projectID = PQgetvalue(res, i, 0);
         char *name = PQgetvalue(res, i, 1);
         // Append `[projectID,name]` to the projects_list
-        strncat(projects_list, "[", 1024 - strlen(projects_list) - 1);
+        strncat(projects_list, "<", 1024 - strlen(projects_list) - 1);
         strncat(projects_list, projectID, 1024 - strlen(projects_list) - 1);
         strncat(projects_list, " ", 1024 - strlen(projects_list) - 1);
         strncat(projects_list, name, 1024 - strlen(projects_list) - 1);
-        strncat(projects_list, "]", 1024 - strlen(projects_list) - 1);
+        strncat(projects_list, ">", 1024 - strlen(projects_list) - 1);
     }
     PQclear(res);
     // printf("Projects: %s\n", projects_list);
@@ -328,17 +328,18 @@ int attach_file_to_task(PGconn *conn, int userID, int taskID, const char *file_n
     PQclear(res);
     return 0;
 }
-char *view_one_task(PGconn *conn, int taskID)
+char *view_one_task(PGconn *conn, int projectID, int taskID)
 {
     char query[512];
-    snprintf(query, sizeof(query), "SELECT T.\"taskID\", T.name, T.comment, T.status, T.time_created, "
-                                   "U.email, STRING_AGG(A.file_name, ', ') AS file_names "
-                                   "FROM \"TASK\" T "
-                                   "JOIN \"USER\" U ON T.\"userID\" = U.\"userID\" "
-                                   "LEFT JOIN \"ATTACHMENT\" A ON T.\"taskID\" = A.\"taskID\" "
-                                   "WHERE T.\"taskID\" = %d "
-                                   "GROUP BY T.\"taskID\", T.name, T.comment, T.status, T.time_created, U.email;",
-             taskID);
+    snprintf(query, sizeof(query),
+             "SELECT T.\"taskID\", T.name, T.comment, T.status, T.time_created, "
+             "U.email, STRING_AGG(A.file_name, ', ') AS file_names "
+             "FROM \"TASK\" T "
+             "JOIN \"USER\" U ON T.\"userID\" = U.\"userID\" "
+             "LEFT JOIN \"ATTACHMENT\" A ON T.\"taskID\" = A.\"taskID\" "
+             "WHERE T.\"taskID\" = %d AND T.\"projectID\" = %d "
+             "GROUP BY T.\"taskID\", T.name, T.comment, T.status, T.time_created, U.email;",
+             taskID, projectID);
     PGresult *res = PQexec(conn, query);
     if (PQresultStatus(res) != PGRES_TUPLES_OK)
     {
