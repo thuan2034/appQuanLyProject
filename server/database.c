@@ -98,34 +98,26 @@ char *get_projects_list(PGconn *conn, int userID)
 }
 char *get_project(PGconn *conn, int userID, int projectID)
 {
-    const char *query =
-        "WITH UserAuthorization AS ("
-        "    SELECT 1 "
-        "    FROM  \"PROJECT_MEMBER\" "
-        "    WHERE \"userID\" = $1 AND \"projectID\" = $2"
-        ") "
-        "SELECT "
-        "    P.\"projectID\", "
-        "    P.name, "
-        "    P.\"ownerID\", "
-        "    P.description "
-        "FROM "
-        "    \"PROJECT\" P "
-        "WHERE "
-        "    P.\"projectID\" = $2 "
-        "    AND EXISTS (SELECT 1 FROM UserAuthorization);";
-
-    // Convert parameters to string
-    char userIDStr[12], projectIDStr[12];
-    snprintf(userIDStr, sizeof(userIDStr), "%d", userID);
-    snprintf(projectIDStr, sizeof(projectIDStr), "%d", projectID);
-
-    // Parameter array
-    const char *paramValues[2] = {userIDStr, projectIDStr};
+    char query[512];
+    snprintf(query, sizeof(query), "WITH UserAuthorization AS ("
+                                   "    SELECT 1 "
+                                   "    FROM  \"PROJECT_MEMBER\" "
+                                   "    WHERE \"userID\" = %d AND \"projectID\" = %d"
+                                   ") "
+                                   "SELECT "
+                                   "    P.name, "
+                                   "    U.\"name\", "
+                                   "    P.description "
+                                   "FROM "
+                                   "    \"PROJECT\" P "
+                                   "    JOIN \"USER\" U ON P.\"ownerID\" = U.\"userID\" "
+                                   "WHERE "
+                                   "    P.\"projectID\" = %d "
+                                   "    AND EXISTS (SELECT 1 FROM UserAuthorization);",
+             userID, projectID, projectID);
 
     // Execute query with parameters
-    PGresult *res = PQexecParams(conn, query, 2, NULL, paramValues, NULL, NULL, 0);
-
+    PGresult *res = PQexec(conn, query);
     // Check query result
     if (PQresultStatus(res) != PGRES_TUPLES_OK)
     {
@@ -142,11 +134,10 @@ char *get_project(PGconn *conn, int userID, int projectID)
     }
     else
     {
-        const char *projectIDStr = PQgetvalue(res, 0, 0); // projectID
-        const char *name = PQgetvalue(res, 0, 1);         // name
-        const char *ownerID = PQgetvalue(res, 0, 2);      // ownerID
-        const char *description = PQgetvalue(res, 0, 3);  // description
-        size_t response_size = 32 + strlen(projectIDStr) + strlen(name) + strlen(ownerID) + strlen(description);
+        const char *name = PQgetvalue(res, 0, 0);        // name
+        const char *createdBy = PQgetvalue(res, 0, 1);   // ownerID
+        const char *description = PQgetvalue(res, 0, 2); // description
+        size_t response_size = 32 + strlen(name) + strlen(createdBy) + strlen(description);
         char *project = malloc(response_size);
         if (project == NULL)
         {
@@ -156,8 +147,8 @@ char *get_project(PGconn *conn, int userID, int projectID)
         }
         project[0] = '\0';
         // Build the response string
-        snprintf(project, response_size, "<%s><%s><%s><%s>", projectIDStr, name, ownerID, description);
-        printf("%s\n", project);
+        snprintf(project, response_size, "<%s><%s><%s>", name, createdBy, description);
+        // printf("%s\n", project);
         PQclear(res);
         return project;
     }
@@ -247,7 +238,11 @@ char *get_tasks(PGconn *conn, int projectID)
         return NULL;
     }
     tasks[0] = '\0';
-    snprintf(query, sizeof(query), "SELECT \"taskID\", name FROM \"TASK\" WHERE \"projectID\" = %d", projectID);
+    snprintf(query, sizeof(query), "SELECT T.\"taskID\", T.name AS task_name, T.status, U.name AS username "
+                                   "FROM \"TASK\" T "
+                                   "LEFT JOIN \"USER\" U ON T.\"userID\" = U.\"userID\" "
+                                   "WHERE T.\"projectID\" = %d",
+             projectID);
     PGresult *res = PQexec(conn, query);
     if (PQresultStatus(res) != PGRES_TUPLES_OK)
     {
@@ -266,12 +261,129 @@ char *get_tasks(PGconn *conn, int projectID)
     {
         char *taskID = PQgetvalue(res, i, 0);
         char *taskName = PQgetvalue(res, i, 1);
+        char *taskStatus = PQgetvalue(res, i, 2);
+        char *memberName = PQgetvalue(res, i, 3);
         strncat(tasks, "<", 1024 - strlen(tasks) - 1);
         strncat(tasks, taskID, 1024 - strlen(tasks) - 1); // Append taskID, 1024 - strlen(tasks) - 1);
-        strncat(tasks, " ", 1024 - strlen(tasks) - 1);
-        strncat(tasks, taskName, 1024 - strlen(tasks) - 1);
+        strncat(tasks, ">", 1024 - strlen(tasks) - 1);
+        strncat(tasks, "<", 1024 - strlen(tasks) - 1);
+        strncat(tasks, taskName, 1024 - strlen(tasks) - 1); // Append taskName, 1024 - strlen(tasks) - 1);
+        strncat(tasks, ">", 1024 - strlen(tasks) - 1);
+        strncat(tasks, "<", 1024 - strlen(tasks) - 1);
+        strncat(tasks, taskStatus, 1024 - strlen(tasks) - 1); // Append taskStatus, 1024 - strlen(tasks) - 1);
+        strncat(tasks, ">", 1024 - strlen(tasks) - 1);
+        strncat(tasks, "<", 1024 - strlen(tasks) - 1);
+        strncat(tasks, memberName, 1024 - strlen(tasks) - 1); // Append memberName, 1024 - strlen(tasks) - 1);
         strncat(tasks, ">", 1024 - strlen(tasks) - 1);
     }
     PQclear(res);
     return tasks;
+}
+int insert_task(PGconn *conn, int projectID, const char *taskName, const char *member_email)
+{
+    char query[512];
+    snprintf(query, sizeof(query), "WITH UserInProject AS ("
+                                   "    SELECT 1 "
+                                   "    FROM \"PROJECT_MEMBER\" "
+                                   "    WHERE \"projectID\" = %d AND \"userID\" = (SELECT \"userID\" FROM \"USER\" WHERE email = '%s')"
+                                   ") "
+                                   "INSERT INTO \"TASK\" (\"projectID\", \"name\", \"status\", \"userID\") "
+                                   "SELECT %d, '%s', 'not_started', (SELECT \"userID\" FROM \"USER\" WHERE email = '%s') "
+                                   "WHERE EXISTS (SELECT 1 FROM UserInProject) "
+                                   "RETURNING \"taskID\";",
+             projectID, member_email, projectID, taskName, member_email);
+    PGresult *res = PQexec(conn, query);
+    if (PQresultStatus(res) != PGRES_TUPLES_OK || PQntuples(res) == 0)
+    {
+        fprintf(stderr, "User not in project or error inserting task: %s\n", PQerrorMessage(conn));
+        PQclear(res);
+        return -1;
+    }
+    PQclear(res);
+    return 0;
+}
+int attach_file_to_task(PGconn *conn, int taskID, const char *file_name)
+{
+    char query[512];
+    snprintf(query, sizeof(query), "INSERT INTO \"ATTACHMENT\" (\"taskID\", file_name) VALUES (%d, '%s')", taskID, file_name);
+    PGresult *res = PQexec(conn, query);
+    if (PQresultStatus(res) != PGRES_COMMAND_OK)
+    {
+        fprintf(stderr, "Error attaching file to task: %s\n", PQerrorMessage(conn));
+        PQclear(res);
+        return -1;
+    }
+    PQclear(res);
+    return 0;
+}
+char *view_one_task(PGconn *conn, int taskID)
+{
+    char query[512];
+    snprintf(query, sizeof(query), "SELECT T.\"taskID\", T.name, T.comment, T.status, T.time_created, "
+                                   "U.email, STRING_AGG(A.file_name, ', ') AS file_names "
+                                   "FROM \"TASK\" T "
+                                   "JOIN \"USER\" U ON T.\"userID\" = U.\"userID\" "
+                                   "LEFT JOIN \"ATTACHMENT\" A ON T.\"taskID\" = A.\"taskID\" "
+                                   "WHERE T.\"taskID\" = %d "
+                                   "GROUP BY T.\"taskID\", T.name, T.comment, T.status, T.time_created, U.email;",
+             taskID);
+    PGresult *res = PQexec(conn, query);
+    if (PQresultStatus(res) != PGRES_TUPLES_OK)
+    {
+        fprintf(stderr, "Error fetching tasks: %s\n", PQerrorMessage(conn));
+        PQclear(res);
+        return NULL;
+    }
+    int rows = PQntuples(res);
+    if (rows == 0)
+    {
+        printf("No task found with taskID: %d\n", taskID);
+    }
+    else
+    {
+        char *taskName = PQgetvalue(res, 0, 1);
+        char *comment = PQgetvalue(res, 0, 2) ? PQgetvalue(res, 0, 2) : "No comment";
+        char *status = PQgetvalue(res, 0, 3);
+        char *time_created = PQgetvalue(res, 0, 4);
+        char *member_email = PQgetvalue(res, 0, 5);
+        char *file_names = PQgetvalue(res, 0, 6);
+        printf("%s\n", comment);
+        char *task = malloc(1024);
+        if (task == NULL)
+        {
+            fprintf(stderr, "Error allocating memory for task\n");
+            PQclear(res);
+            return NULL;
+        }
+        task[0] = '\0';
+        snprintf(task, 1024, "200 <%d><%s><%s><%s><%s><%s><%s>", taskID, taskName, comment, status, time_created, member_email, file_names);
+        PQclear(res);
+        return task;
+    }
+    PQclear(res);
+    return NULL;
+}
+int add_comment(PGconn *conn, int userID, int taskID, const char *comment)
+{
+    char escaped_comment[1024];                                                // Buffer to hold the escaped comment
+    PQescapeStringConn(conn, escaped_comment, comment, strlen(comment), NULL); // Escape special characters in the comment
+
+    char query[512 + 1024]; // Adjust buffer size to accommodate the escaped comment
+    snprintf(query, sizeof(query), "UPDATE \"TASK\" "
+                                   "SET comment = '%s' "
+                                   "WHERE \"taskID\" = %d AND \"userID\" = %d "
+                                   "RETURNING \"taskID\";",
+             escaped_comment, taskID, userID);
+
+    PGresult *res = PQexec(conn, query);
+    if (PQresultStatus(res) != PGRES_TUPLES_OK || PQntuples(res) == 0)
+    {
+        fprintf(stderr, "Error adding comment: %s\n", PQerrorMessage(conn));
+        PQclear(res);
+        return -1;
+    }
+
+    PQclear(res);
+    printf("Comment added successfully to task ID %d.\n", taskID);
+    return 0;
 }

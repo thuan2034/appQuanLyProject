@@ -3,7 +3,10 @@
 #include <string.h>
 #include <unistd.h>
 #include <sys/socket.h>
+#include <sys/stat.h>
+#include <sys/types.h>
 #include <pthread.h>
+#include <errno.h>
 #include "database.h"
 #include "session.h"
 #include "client_handler.h"
@@ -56,7 +59,7 @@ void *client_handler(void *args)
             char token[32];
             strncpy(token, client_message + 4, sizeof(token) - 1);
             token[sizeof(token) - 1] = '\0';
-            printf("Token: %s\n", token);
+            // printf("Token: %s\n", token);
             remove_session(session_manager, token);
             print_sessions(session_manager);
         }
@@ -65,7 +68,7 @@ void *client_handler(void *args)
             char token[32];
             strncpy(token, client_message + 4, sizeof(token) - 1);
             token[sizeof(token) - 1] = '\0';
-            printf("Token: %s\n", token);
+            // printf("Token: %s\n", token);
             UserSession *userSession = find_session(session_manager, token);
             if (userSession == NULL)
             {
@@ -82,7 +85,7 @@ void *client_handler(void *args)
             }
             snprintf(response, sizeof(response), "200 <%s>\n", projects);
             send(client_sock, response, strlen(response), 0);
-            printf("Response: %s\n", response);
+            // printf("Response: %s\n", response);
             free(projects);
             projects = NULL;
         }
@@ -99,7 +102,7 @@ void *client_handler(void *args)
                 continue;
             }
             int userID = userSession->userID;
-            printf("%d %s\n", projectID, token);
+            // printf("%d %s\n", projectID, token);
             char response[2048];
             char *project = get_project(conn, userID, projectID);
             if (project == NULL)
@@ -109,7 +112,7 @@ void *client_handler(void *args)
             }
             else
             {
-                printf("%s\n", project);
+                // printf("%s\n", project);
                 snprintf(response, sizeof(response), "200 %s\n", project);
                 send(client_sock, response, strlen(response), 0);
                 // printf("Response: %s\n", response);
@@ -146,7 +149,7 @@ void *client_handler(void *args)
             int projectID;
             sscanf(client_message, "INV<%d><%[^>]><%[^>]>", &projectID, email, token);
             token[sizeof(token) - 1] = '\0';
-            printf("Token: %s\n", token);
+            // printf("Token: %s\n", token);
             UserSession *userSession = find_session(session_manager, token);
             if (userSession == NULL)
             {
@@ -186,13 +189,145 @@ void *client_handler(void *args)
                 continue;
             }
             else
-            {   char response[2048];
+            {
+                char response[2048];
                 snprintf(response, sizeof(response), "200 %s\n", tasks);
-                printf("%s\n", tasks);
+                // printf("%s\n", tasks);
+                // printf("Response: %s\n", response);
                 send(client_sock, response, strlen(response), 0);
             }
             free(tasks);
             tasks = NULL;
+        }
+        else if (strncmp(client_message, "TSK", 3) == 0)
+        {
+            char token[32], taskName[50], member_email[50];
+            int projectID;
+            sscanf(client_message, "TSK<%d><%[^>]><%[^>]><%[^>]>", &projectID, taskName, member_email, token);
+            token[sizeof(token) - 1] = '\0';
+            UserSession *userSession = find_session(session_manager, token);
+            if (userSession == NULL)
+            {
+                send(client_sock, "401 <Unauthorized: Invalid token>\n", strlen("401 <Unauthorized: Invalid token>\n"), 0);
+                continue;
+            }
+            int status = insert_task(conn, projectID, taskName, member_email);
+            if (status == -1)
+            {
+                send(client_sock, "403 <USER NOT FOUND>\n", strlen("403 <USER NOT FOUND>\n"), 0);
+                continue;
+            }
+            send(client_sock, "200 <Task created>\n", strlen("200 <Task created>\n"), 0);
+        }
+        else if (strncmp(client_message, "ATH", 3) == 0)
+        {
+            char token[32], file_name[50];
+            int projectID, taskID;
+            long file_size;
+            sscanf(client_message, "ATH<%d><%d><%[^>]><%[^>]><%ld>", &projectID, &taskID, file_name, token, &file_size);
+            token[sizeof(token) - 1] = '\0';
+            printf("Token: %s\n", token);
+            // Validate session
+            UserSession *userSession = find_session(session_manager, token);
+            if (userSession == NULL)
+            {
+                send(client_sock, "401 <Unauthorized: Invalid token>\n", strlen("401 <Unauthorized: Invalid token>\n"), 0);
+                continue;
+            }
+
+            // Construct folder path
+            char folder_path[256];
+            snprintf(folder_path, sizeof(folder_path), "/mnt/e/ThucHanhLapTrinhMang20241/project/refactor/project_manager/%d", projectID);
+            // printf("Folder path: %s\n", folder_path);
+            if (mkdir(folder_path, 0755) == -1)
+            {
+                perror("mkdir failed");
+            }
+            snprintf(folder_path, sizeof(folder_path), "/mnt/e/ThucHanhLapTrinhMang20241/project/refactor/project_manager/%d/%d", projectID, taskID);
+            if (mkdir(folder_path, 0755) == -1)
+            {
+                perror("mkdir failed");
+            }
+            // Construct full file path on the server
+            char server_file_path[512];
+            snprintf(server_file_path, sizeof(server_file_path), "%s/%s", folder_path, file_name);
+            // Open file for writing
+            FILE *file = fopen(server_file_path, "wb");
+            if (file == NULL)
+            {
+                perror("Failed to open file");
+                send(client_sock, "500 <Internal Server Error: Cannot open file>\n", strlen("500 <Internal Server Error: Cannot open file>\n"), 0);
+                continue;
+            }
+
+            // Notify client to start sending file data
+            send(client_sock, "OK\n", strlen("OK\n"), 0);
+
+            // Receive file data from client
+            char buffer[1024];
+            ssize_t bytes_received;
+            long total_bytes_received = 0;
+            while (total_bytes_received < file_size && (bytes_received = recv(client_sock, buffer, sizeof(buffer), 0)) > 0)
+            {
+                fwrite(buffer, 1, bytes_received, file);
+                total_bytes_received += bytes_received;
+            }
+
+            fclose(file);
+            // printf("File %s saved successfully in %s\n", file_name, folder_path);
+            // Insert attachment information into the database
+            int status = attach_file_to_task(conn, taskID, file_name);
+            if (status == -1)
+            {
+                send(client_sock, "500 <Internal Server Error: Database insertion failed>\n", strlen("500 <Internal Server Error: Database insertion failed>\n"), 0);
+                continue;
+            }
+
+            // Confirm success
+            send(client_sock, "200 <Attachment added successfully>\n", strlen("200 <Attachment added successfully>\n"), 0);
+        }
+        else if (strncmp(client_message, "VOT", 3) == 0)
+        {
+            int taskID;
+            char token[32];
+            sscanf(client_message, "VOT<%d><%s>", &taskID, token);
+            token[sizeof(token) - 1] = '\0';
+            UserSession *userSession = find_session(session_manager, token);
+            if (userSession == NULL)
+            {
+                send(client_sock, "401 <Unauthorized: Invalid token>\n", strlen("401 <Unauthorized: Invalid token>\n"), 0);
+                continue;
+            }
+            char *task_info = view_one_task(conn, taskID);
+            if (task_info == NULL)
+            {
+                send(client_sock, "404 <Task not found>\n", strlen("404 <Task not found>\n"), 0);
+                continue;
+            }
+            send(client_sock, task_info, strlen(task_info), 0);
+            free(task_info);
+            task_info = NULL;
+        }
+        else if (strncmp(client_message, "CMT", 3) == 0)
+        {
+            char token[32], comment[256];
+            int taskID,userID;
+            sscanf(client_message, "CMT<%d><%[^>]><%s>", &taskID, comment, token);
+            token[sizeof(token) - 1] = '\0';
+            UserSession *userSession = find_session(session_manager, token);
+            if (userSession == NULL)
+            {
+                send(client_sock, "401 <Unauthorized: Invalid token>\n", strlen("401 <Unauthorized: Invalid token>\n"), 0);
+                continue;
+            }
+            userID = userSession->userID;
+            int status = add_comment(conn,userID, taskID, comment);
+            if (status == -1)
+            {
+                send(client_sock, "403 <You don't have permission to add comment to this task>\n", strlen("403 <You don't have permission to add comment to this task>\n"), 0);
+                continue;
+            }
+            send(client_sock, "200 <Comment added successfully>\n", strlen("200 <Comment added successfully>\n"), 0);
         }
         memset(client_message, 0, sizeof(client_message));
     }
