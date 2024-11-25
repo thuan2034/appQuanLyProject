@@ -342,11 +342,20 @@ char *view_one_task(PGconn *conn, int taskID)
     else
     {
         char *taskName = PQgetvalue(res, 0, 1);
-        char *comment = PQgetvalue(res, 0, 2) ? PQgetvalue(res, 0, 2) : "No comment";
+        char *comment = PQgetvalue(res, 0, 2);
         char *status = PQgetvalue(res, 0, 3);
         char *time_created = PQgetvalue(res, 0, 4);
         char *member_email = PQgetvalue(res, 0, 5);
         char *file_names = PQgetvalue(res, 0, 6);
+        if(strlen(file_names) == 0)
+        {
+            file_names="No files attached";
+        }
+        if (strlen(comment) == 0)
+        {
+            comment = "No comment";
+        }
+        
         printf("%s\n", comment);
         char *task = malloc(1024);
         if (task == NULL)
