@@ -7,9 +7,10 @@
 #include "client_handler.h"
 #include "session.h"
 
-#define PORT 5000
+#define PORT 6600
 
-int main() {
+int main()
+{
     SessionManager session_manager;
     init_session_manager(&session_manager);
     int server_fd, new_socket;
@@ -25,17 +26,34 @@ int main() {
     listen(server_fd, 3);
     printf("Server listening on port %d\n", PORT);
 
-    while ((new_socket = accept(server_fd, (struct sockaddr *)&address, (socklen_t *)&addrlen)) >= 0) {
+    while ((new_socket = accept(server_fd, (struct sockaddr *)&address, (socklen_t *)&addrlen)) >= 0)
+    {
         printf("Client connected\n");
+
         pthread_t thread_id;
-        int *new_sock = malloc(sizeof(int));
-        *new_sock = new_socket;
         ClientHandlerArgs *client_args = malloc(sizeof(ClientHandlerArgs));
+        if (!client_args)
+        {
+            perror("Malloc failed");
+            close(new_socket);
+            continue;
+        }
+
         client_args->session_manager = &session_manager;
         client_args->socket = new_socket;
-        pthread_create(&thread_id, NULL, client_handler, (void *)client_args);
-    }
 
+        if (pthread_create(&thread_id, NULL, client_handler, (void *)client_args) != 0)
+        {
+            perror("Thread creation failed");
+            free(client_args);
+            close(new_socket);
+        }
+        else
+        {
+            pthread_detach(thread_id); // Detach thread to avoid resource leaks
+        }
+    }
+    printf("Server stopped\n");
     close(server_fd);
     return 0;
 }

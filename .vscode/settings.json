@@ -2,6 +2,7 @@
     "files.associations": {
         "session.h": "c",
         "unistd.h": "c",
-        "database.h": "c"
+        "database.h": "c",
+        "libpq-fe.h": "c"
     }
 }

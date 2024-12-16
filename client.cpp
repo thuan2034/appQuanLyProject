@@ -5,7 +5,7 @@
 #include <arpa/inet.h>
 #include <sys/socket.h>
 #include <ctype.h>
-#define PORT 5000
+#define PORT 6600
 int sock = 0;
 char token[32];
 char message[2048];
@@ -19,20 +19,18 @@ void fetch_projects_list();
 void handle_view_project(int projectID);
 void handle_create_project(char *project_name, char *project_description);
 void handle_invite_member(int projectID, char *email);
+void handle_view_project_members(int projectID);
 void handle_view_tasks(int projectID);
 void handle_create_task(int projectID, char *task_name, char *member_email);
 void handle_view_one_task(int projectID, int taskID);
 void handle_add_file(int projectID, int taskID, char *file_path);
 void handle_add_comment(int taskID, char *comment);
+void handle_update_status(int taskID, char *status);
 int is_allowed_file_type(const char *file_path);
+void handle_chat(int projectID);
 void menu();
 void home_page();
-void clear_input_buffer()
-{
-    int c;
-    while ((c = getchar()) != '\n' && c != EOF)
-        ; // Discard remaining input
-}
+
 int main()
 {
     struct sockaddr_in serv_addr;
@@ -84,17 +82,17 @@ void menu()
     }
     if (choice == 1)
     {
-        handle_registration(message, sizeof(message));
+        handle_registration();
     }
     else if (choice == 2)
     {
-        handle_login(message, sizeof(message));
+        handle_login();
     }
 }
 
 void home_page()
 {
-    system("clear");
+    // system("clear");
     int choice;
     int projectID = 0;
     char project_name[50], project_description[512];
@@ -199,7 +197,7 @@ void handle_registration()
     }
     // printf("Password: %s\n", password);
     snprintf(message, message_size, "REG<%s><%s><%s>", username, email, password);
-    printf("Message sent: %s\n", message);
+    // printf("Message sent: %s\n", message);
     send(sock, message, strlen(message), 0);
     char server_response[512];
     memset(server_response, 0, sizeof(server_response));
@@ -232,7 +230,7 @@ void handle_login()
     scanf("%s", password);
     // printf("Password: %s\n", password);
     snprintf(message, message_size, "LOG<%s><%s>", email, password);
-    printf("Message sent: %s\n", message);
+    // printf("Message sent: %s\n", message);
     send(sock, message, strlen(message), 0);
     char server_response[512];
     memset(server_response, 0, sizeof(server_response));
@@ -242,9 +240,9 @@ void handle_login()
         if (strncmp(server_response, "200", 3) == 0)
         {
             printf("✅ %s\n", server_response);
-            strncpy(token, server_response + 23, sizeof(token));
+            strncpy(token, server_response + 5, sizeof(token));
             token[sizeof(token) - 1] = '\0';
-            // printf("Token: %s\n", token);
+            printf("Token: %s\n", token);
         }
         else
         {
@@ -264,6 +262,7 @@ void handle_logout()
     snprintf(message, message_size, "OUT<%s>", token);
     send(sock, message, strlen(message), 0);
     memset(token, 0, sizeof(token));
+    token[0] = '\0';
 }
 int is_valid_email(const char *email)
 {
@@ -344,11 +343,11 @@ void fetch_projects_list()
                 printf("╠══════╬═════════════════════════════════════════════╣\n");
                 project_count++;
             }
-            else
-            {
-                // Handle invalid tokens
-                printf("⚠️  Skipping invalid project entry: '%s'\n", entry);
-            }
+            // else
+            // {
+            //     // Handle invalid tokens
+            //     printf("⚠️  Skipping invalid project entry: '%s'\n", entry);
+            // }
 
             // Get the next token
             entry = strtok(NULL, "<>");
@@ -371,7 +370,7 @@ void handle_view_project(int projectID)
     snprintf(message, message_size, "PRD<%d><%s>", projectID, token);
     int len = strlen(message);
     message[len] = '\0';
-    printf("Message sent: %s\n", message);
+    // printf("Message sent: %s\n", message);
     send(sock, message, strlen(message), 0);
     char server_response[2048];
     memset(server_response, 0, sizeof(server_response));
@@ -409,6 +408,8 @@ void handle_view_project(int projectID)
                 printf("1. Go back to project list\n");
                 printf("2. View tasks\n");
                 printf("3. Invite member\n");
+                printf("4. Chat\n");
+                printf("5. View project members\n");
                 if (scanf("%d", &choice) != 1)
                 {
                     clear_input_buffer(); // Clear invalid input
@@ -435,6 +436,14 @@ void handle_view_project(int projectID)
                     }
                     handle_invite_member(projectID, email);
                 }
+                else if (choice == 4)
+                {
+                    handle_chat(projectID);
+                }
+                else if (choice ==5)
+                {
+                    handle_view_project_members(projectID);
+                }
             } while (choice != 1);
         }
         else
@@ -457,7 +466,7 @@ void handle_create_project(char *project_name, char *project_description)
     system("clear");
     snprintf(message, message_size, "PRO<%s><%s><%s>", project_name, project_description, token);
     send(sock, message, strlen(message), 0);
-    printf("Message sent: %s\n", message);
+    // printf("Message sent: %s\n", message);
     char server_response[128];
     memset(server_response, 0, sizeof(server_response));
     int read_size = recv(sock, server_response, sizeof(server_response), 0);
@@ -473,7 +482,7 @@ void handle_invite_member(int projectID, char *email)
     // printf("Debug: projectID=%d, email=%s, token=%s\n", projectID, email, token);
     snprintf(message, message_size, "INV<%d><%s><%s>", projectID, email, token);
     send(sock, message, strlen(message), 0);
-    printf("Message sent: %s\n", message);
+    // printf("Message sent: %s\n", message);
     char server_response[128];
     memset(server_response, 0, sizeof(server_response));
     int read_size = recv(sock, server_response, sizeof(server_response), 0);
@@ -493,7 +502,7 @@ void handle_view_tasks(int projectID)
         system("clear");
         snprintf(message, message_size, "VTL<%d><%s>", projectID, token);
         send(sock, message, strlen(message), 0);
-        printf("Message sent: %s\n", message);
+        // printf("Message sent: %s\n", message);
         char server_response[2048];
         memset(server_response, 0, sizeof(server_response));
         int read_size = recv(sock, server_response, sizeof(server_response), 0);
@@ -615,7 +624,7 @@ void handle_create_task(int projectID, char *task_name, char *member_email)
 
     snprintf(message, message_size, "TSK<%d><%s><%s><%s>", projectID, task_name, member_email, token);
     send(sock, message, strlen(message), 0);
-    printf("Message sent: %s\n", message);
+    // printf("Message sent: %s\n", message);
     char server_response[128];
     memset(server_response, 0, sizeof(server_response));
     int read_size = recv(sock, server_response, sizeof(server_response), 0);
@@ -729,7 +738,7 @@ void handle_add_file(int projectID, int taskID, char *file_path)
 }
 int is_allowed_file_type(const char *file_path)
 {
-    const char *allowed_extensions[] = {".txt", ".doc", ".docx", ".pdf", ".jpg", ".jpeg", ".png"};
+    const char *allowed_extensions[] = {".txt", ".doc", ".docx", ".pdf", ".jpg", ".jpeg", ".png", ".pptx"};
     size_t num_allowed = sizeof(allowed_extensions) / sizeof(allowed_extensions[0]);
 
     const char *file_ext = strrchr(file_path, '.');
@@ -748,9 +757,9 @@ void handle_view_one_task(int projectID, int taskID)
     do
     {
         system("clear");
-        snprintf(message, message_size, "VOT<%d><%d><%s>",projectID, taskID, token);
+        snprintf(message, message_size, "VOT<%d><%s>", taskID, token);
         send(sock, message, strlen(message), 0);
-        printf("Message sent: %s\n", message);
+        // printf("Message sent: %s\n", message);
         char server_response[2048];
         memset(server_response, 0, sizeof(server_response));
         int read_size = recv(sock, server_response, sizeof(server_response), 0);
@@ -784,13 +793,41 @@ void handle_view_one_task(int projectID, int taskID)
                 printf("1. Go back to task list\n");
                 printf("2. Add Attachment\n");
                 printf("3. Add Comment\n");
+                printf("4. Update Status\n");
                 printf("Enter your choice: ");
                 if (scanf("%d", &choice) != 1)
                 {
                     clear_input_buffer(); // Clear invalid input
                     continue;             // Restart the loop
                 }
-                if (choice == 3)
+                if (choice == 4)
+                {
+                    char new_status[32];
+                    printf("Choose status:\n");
+                    printf("1. Not Started\n");
+                    printf("2. In Progress\n");
+                    printf("3. Completed\n");
+                    printf("Enter your choice: ");
+                    if (scanf("%d", &choice) != 1)
+                    {
+                        clear_input_buffer(); // Clear invalid input
+                        continue;             // Restart the loop
+                    }
+                    if (choice == 1)
+                    {
+                        strcpy(new_status, "Not started");
+                    }
+                    else if (choice == 2)
+                    {
+                        strcpy(new_status, "In Progress");
+                    }
+                    else if (choice == 3)
+                    {
+                        strcpy(new_status, "Completed");
+                    }
+                    handle_update_status(taskID, new_status);
+                }
+                else if (choice == 3)
                 {
                     char new_comment[256];
                     printf("Enter comment: ");
@@ -837,7 +874,23 @@ void handle_add_comment(int taskID, char *comment)
 {
     snprintf(message, message_size, "CMT<%d><%s><%s>", taskID, comment, token);
     send(sock, message, strlen(message), 0);
-    printf("Message sent: %s\n", message);
+    // printf("Message sent: %s\n", message);
+    char server_response[128];
+    memset(server_response, 0, sizeof(server_response));
+    int read_size = recv(sock, server_response, sizeof(server_response), 0);
+    if (read_size > 0)
+    {
+        // printf("%s", server_response);
+        char c;
+        printf("OK?\n");
+        scanf("%c", &c);
+    }
+}
+void handle_update_status(int taskID, char *status)
+{
+    snprintf(message, message_size, "STT<%d><%s><%s>", taskID, status, token);
+    send(sock, message, strlen(message), 0);
+    // printf("Message sent: %s\n", message);
     char server_response[128];
     memset(server_response, 0, sizeof(server_response));
     int read_size = recv(sock, server_response, sizeof(server_response), 0);
@@ -847,5 +900,43 @@ void handle_add_comment(int taskID, char *comment)
         char c;
         printf("OK?\n");
         scanf("%c", &c);
+    }
+}
+void handle_chat(int projectID)
+{
+    system("clear");
+    snprintf(message, message_size, "CHT<%d><%s>", projectID, token);
+    send(sock, message, strlen(message), 0);
+    // printf("Message sent: %s\n", message);
+    char server_response[128];
+    memset(server_response, 0, sizeof(server_response));
+    int read_size = recv(sock, server_response, sizeof(server_response), 0);
+    if (read_size > 0)
+    {
+        printf("%s", server_response);
+    }
+}
+void clear_input_buffer()
+{
+    int c;
+    while ((c = getchar()) != '\n' && c != EOF)
+        ; // Discard remaining input
+}
+void handle_view_project_members(int projectID)
+{
+    snprintf(message, message_size, "MEM<%d><%s>", projectID, token);
+    send(sock, message, strlen(message), 0);
+    // printf("Message sent: %s\n", message);
+    char server_response[2048];
+    memset(server_response, 0, sizeof(server_response));
+    int read_size = recv(sock, server_response, sizeof(server_response), 0);
+    if (read_size > 0)
+    {
+        printf("%s", server_response);
+        char c;
+        printf("OK?\n");
+        getchar();
+        scanf("%c", &c);
+
     }
 }
