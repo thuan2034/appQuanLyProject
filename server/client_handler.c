@@ -16,9 +16,10 @@ void *client_handler(void *args)
     ClientHandlerArgs *client_args = (ClientHandlerArgs *)args;
     int client_sock = client_args->socket;
     SessionManager *session_manager = client_args->session_manager;
-
+    ChatRoomList *chat_rooms = client_args->chat_rooms;
     free(client_args); // Don't forget to free the passed struct
     char client_message[2048];
+    char username[50];
     PGconn *conn = connect_db();
 
     while (recv(client_sock, client_message, sizeof(client_message), 0) > 0)
@@ -42,9 +43,9 @@ void *client_handler(void *args)
         else if (strncmp(client_message, "LOG", 3) == 0)
         {
             printf("Client message: %s\n", client_message);
-            //username_userID format: <username><userID>
-            char *username_userID=login_user(conn, client_message);
-           
+            // username_userID format: <username><userID>
+            char *username_userID = login_user(conn, client_message);
+
             if (username_userID == NULL)
             {
                 send(client_sock, "401 <Unauthorized: Invalid email or password>\n", strlen("401 <Unauthorized: Invalid email or password>\n"), 0);
@@ -52,9 +53,8 @@ void *client_handler(void *args)
             }
             else
             {
-                char token[32], response[256], username[50];
+                char token[32], response[256];
                 int userID;
-                
                 strncpy(token, generate_token(), sizeof(token) - 1);
                 token[sizeof(token) - 1] = '\0';
                 // printf("Token: %s\n", token);
@@ -265,9 +265,9 @@ void *client_handler(void *args)
         else if (strncmp(client_message, "TSK", 3) == 0)
         {
             printf("Client message: %s\n", client_message);
-            char token[32], taskName[50], member_email[50];
+            char token[32], taskName[50], member_email[50], description[1024], time_created[128], time_end[128];
             int projectID;
-            sscanf(client_message, "TSK<%d><%[^>]><%[^>]><%[^>]>", &projectID, taskName, member_email, token);
+            sscanf(client_message, "TSK<%d><%[^>]><%[^>]><%[^>]><%[^>]><%[^>]><%[^>]>", &projectID, taskName,description, member_email,time_created, time_end, token);
             token[sizeof(token) - 1] = '\0';
             UserSession *userSession = find_session(session_manager, token);
             if (userSession == NULL)
@@ -276,7 +276,7 @@ void *client_handler(void *args)
                 printf("Server response: 401 <Unauthorized: Invalid token>\n");
                 continue;
             }
-            int taskID = insert_task(conn, projectID, taskName, member_email);
+            int taskID = insert_task(conn, projectID, taskName, member_email, description, time_created, time_end);
             if (taskID == -1)
             {
                 send(client_sock, "403 <USER NOT IN PROJECT>\n", strlen("403 <USER NOT IN PROJECT>\n"), 0);
@@ -379,6 +379,32 @@ void *client_handler(void *args)
             free(task_info);
             task_info = NULL;
         }
+        else if(strncmp(client_message,"VCM",3) == 0){
+            printf("Client message: %s\n", client_message);
+            int taskID, offset;
+            char token[32];
+            sscanf(client_message, "VCM<%d><%d><%s>", &taskID,&offset, token);
+            token[sizeof(token) - 1] = '\0';
+            UserSession *userSession = find_session(session_manager, token);
+            if (userSession == NULL)
+            {
+                send(client_sock, "401 <Unauthorized: Invalid token>\n", strlen("401 <Unauthorized: Invalid token>\n"), 0);
+                continue;
+            }
+            char *comments = get_comments(conn, taskID, offset);
+            if (comments == NULL)
+            {
+                send(client_sock, "404 <Task not found in project>\n", strlen("404 <Task not found in project>\n"), 0);
+                printf("Server response: 404 <Task not found in project>\n");
+                continue;
+            }
+            char response[2048];
+            snprintf(response, sizeof(response), "200 %s\n", comments);
+            send(client_sock, response, strlen(response), 0);
+            printf("Server response: %s\n", response);
+            free(comments);
+            comments = NULL;
+        }
         else if (strncmp(client_message, "CMT", 3) == 0)
         {
             printf("Client message: %s\n", client_message);
@@ -472,6 +498,46 @@ void *client_handler(void *args)
             send(client_sock, "200 <File downloaded successfully>\n", strlen("200 <File downloaded successfully>\n"), 0);
             printf("Server response: 200 <File downloaded successfully>\n");
         }
+        else if (strncmp(client_message, "JCH", 3) == 0){
+            printf("Client message: %s\n", client_message);
+            int projectID;
+            char token[32];
+            // Parse the message: JCH<projectID><token>
+            if (sscanf(client_message, "JCH<%d><%31[^>]>", &projectID, token) != 2) {
+                send(client_sock, "400 <Invalid request format>\n", strlen("400 <Invalid request format>\n"), 0);
+                printf("Server response: 400 <Invalid request format>\n");
+                memset(client_message, 0, sizeof(client_message));
+                continue;
+            }
+            token[31] = '\0'; // Ensure null-termination
+
+            // Authenticate the token
+            UserSession *userSession = find_session(session_manager, token);
+            if (userSession == NULL)
+            {
+                send(client_sock, "401 <Unauthorized: Invalid token>\n", strlen("401 <Unauthorized: Invalid token>\n"), 0);
+                printf("Server response: 401 <Unauthorized: Invalid token>\n");
+                memset(client_message, 0, sizeof(client_message));
+                continue;
+            }
+
+            // Retrieve or create the chat room
+            ChatRoom *chat_room = get_or_create_chat_room(chat_rooms, projectID);
+            if (chat_room == NULL)
+            {
+                send(client_sock, "500 <Internal server error>\n", strlen("500 <Internal server error>\n"), 0);
+                printf("Server response: 500 <Internal server error>\n");
+                memset(client_message, 0, sizeof(client_message));
+                continue;
+            }
+
+            // Add the client to the chat room
+            add_client_to_room(chat_room, client_sock);
+
+            // Optionally, send a confirmation message
+            send(client_sock, "200 <Joined chat room successfully>\n", strlen("200 <Joined chat room successfully>\n"), 0);
+            printf("Server response: 200 <Joined chat room successfully>\n");
+        }
         else if (strncmp(client_message, "VCH", 3) == 0)
         {
             printf("Client message: %s\n", client_message);
@@ -479,23 +545,18 @@ void *client_handler(void *args)
             // Variables to hold parsed data
             char token[32];
             int projectID;
-            int limit ;
+            int limit;
             int offset;
 
             // Parse the message: VCH<projectID><token><offset>
             // Since limit is hardfixed to 10, we remove it from the parsing
-            if (sscanf(client_message, "VCH<%d><%31[^>]><%d><%d>", &projectID, token,&limit, &offset) != 4)
+            if (sscanf(client_message, "VCH<%d><%31[^>]><%d><%d>", &projectID, token, &limit, &offset) != 4)
             {
                 send(client_sock, "400 <Invalid request format>\n", strlen("400 <Invalid request format>\n"), 0);
                 printf("Server response: 400 <Invalid request format>\n");
                 memset(client_message, 0, sizeof(client_message));
                 continue;
             }
-            // printf("Project ID: %d\n", projectID);
-            // printf("Token: %s\n", token);
-            // printf("Offset: %d\n", offset);
-            // printf("Limit: %d\n", limit);
-
             // Null-terminate the token to prevent buffer overflow
             token[31] = '\0';
 
@@ -521,7 +582,7 @@ void *client_handler(void *args)
             }
 
             // Fetch the chat history from the database with fixed limit=10
-            char *chat_history = get_chat_history(conn, projectID, limit, offset); 
+            char *chat_history = get_chat_history(conn, projectID, limit, offset);
             if (chat_history == NULL)
             {
                 send(client_sock, "500 <Internal server error>\n", strlen("500 <Internal server error>\n"), 0);
@@ -529,9 +590,7 @@ void *client_handler(void *args)
                 memset(client_message, 0, sizeof(client_message));
                 continue;
             }
-
             // printf("Chat history: %s\n", chat_history); // Removed to prevent unnecessary logging
-
             // Send the chat history to the client
             char response[4096];
             snprintf(response, sizeof(response), "%s\n", chat_history);
@@ -539,14 +598,15 @@ void *client_handler(void *args)
             printf("Server response: %s\n", response);
             free(chat_history);
         }
-        else if(strncmp(client_message, "MSG", 3) == 0)
+        else if (strncmp(client_message, "MSG", 3) == 0)
         {
             printf("Client message: %s\n", client_message);
-            int projectID,userID;
+            int projectID;
             char token[32];
             char messageContent[1024];
-            // const command = `MSG<${projectID}><${token}><${content}>`; // Ensure this command matches your C server's expected format
-            if(sscanf(client_message, "MSG<%d><%31[^>]><%1023[^>]>", &projectID, token, messageContent) != 3)  
+
+            // Parse the message: MSG<projectID><token><content>
+            if (sscanf(client_message, "MSG<%d><%31[^>]><%1023[^>]>", &projectID, token, messageContent) != 3)
             {
                 send(client_sock, "400 <Invalid request format>\n", strlen("400 <Invalid request format>\n"), 0);
                 printf("Server response: 400 <Invalid request format>\n");
@@ -554,8 +614,7 @@ void *client_handler(void *args)
                 continue;
             }
 
-            // Null-terminate the token to prevent buffer overflow
-            token[31] = '\0';
+            token[31] = '\0'; // Ensure null-termination
 
             // Authenticate the token
             UserSession *userSession = find_session(session_manager, token);
@@ -568,7 +627,7 @@ void *client_handler(void *args)
             }
 
             // Check if the user has access to the project
-            userID = userSession->userID;
+            int userID = userSession->userID;
             if (!user_has_access(conn, userID, projectID))
             {
                 send(client_sock, "403 <Forbidden: Access to project denied>\n", strlen("403 <Forbidden: Access to project denied>\n"), 0);
@@ -586,8 +645,81 @@ void *client_handler(void *args)
                 continue;
             }
 
+            // Retrieve the user's name
+            if (username == NULL)
+            {
+                send(client_sock, "500 <Internal server error>\n", strlen("500 <Internal server error>\n"), 0);
+                printf("Server response: 500 <Internal server error>\n");
+                memset(client_message, 0, sizeof(client_message));
+                continue;
+            }
+
+            // Construct the broadcast message in the format: MSG<projectID<userName><content>
+            char broadcast_msg[2048];
+            snprintf(broadcast_msg, sizeof(broadcast_msg), "MSG<%d><%s><%s>", projectID, username, messageContent);
+
+            // Retrieve the chat room
+            ChatRoom *chat_room = get_or_create_chat_room(chat_rooms, projectID);
+            if (chat_room == NULL)
+            {
+                // Optionally handle the case where the chat room doesn't exist
+                send(client_sock, "404 <Chat room not found>\n", strlen("404 <Chat room not found>\n"), 0);
+                printf("Server response: 404 <Chat room not found>\n");
+                memset(client_message, 0, sizeof(client_message));
+                continue;
+            }
+
+            // Broadcast the message to other clients in the chat room
+            broadcast_message(chat_room, client_sock, broadcast_msg);
+            printf("Broadcasted message to chat room %d: %s\n", projectID, broadcast_msg);
+
+            // Send a confirmation to the sender
             send(client_sock, "200 <Message sent successfully>\n", strlen("200 <Message sent successfully>\n"), 0);
             printf("Server response: 200 <Message sent successfully>\n");
+
+        }
+         else if (strncmp(client_message, "LCH", 3) == 0)
+        {
+            printf("Client message: %s\n", client_message);
+            int projectID;
+            char token[32];
+            // Parse the message: LCH<projectID><token>
+            if (sscanf(client_message, "LCH<%d><%31[^>]>", &projectID, token) != 2)
+            {
+                send(client_sock, "400 <Invalid request format>\n", strlen("400 <Invalid request format>\n"), 0);
+                printf("Server response: 400 <Invalid request format>\n");
+                memset(client_message, 0, sizeof(client_message));
+                continue;
+            }
+            token[31] = '\0'; // Ensure null-termination
+
+            // Authenticate the token
+            UserSession *userSession = find_session(session_manager, token);
+            if (userSession == NULL)
+            {
+                send(client_sock, "401 <Unauthorized: Invalid token>\n", strlen("401 <Unauthorized: Invalid token>\n"), 0);
+                printf("Server response: 401 <Unauthorized: Invalid token>\n");
+                memset(client_message, 0, sizeof(client_message));
+                continue;
+            }
+
+            // Retrieve the chat room without creating a new one
+            // Assuming you have a get_chat_room function; if not, implement it in chat_room.c
+            ChatRoom *chat_room = get_or_create_chat_room(chat_rooms, projectID);
+            if (chat_room == NULL)
+            {
+                send(client_sock, "404 <Chat room not found>\n", strlen("404 <Chat room not found>\n"), 0);
+                printf("Server response: 404 <Chat room not found>\n");
+                memset(client_message, 0, sizeof(client_message));
+                continue;
+            }
+
+            // Remove the client from the chat room
+            remove_client_from_room(chat_room, client_sock);
+
+            // Optionally, send a confirmation message
+            send(client_sock, "200 <Left chat room successfully>\n", strlen("200 <Left chat room successfully>\n"), 0);
+            printf("Server response: 200 <Left chat room successfully>\n");
         }
         else
         {

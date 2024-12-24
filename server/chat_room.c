@@ -52,7 +52,7 @@ void add_client_to_room(ChatRoom *room, int client_socket) {
     new_client->next = room->clients;
     room->clients = new_client;
     pthread_mutex_unlock(&room->room_mutex);
-    printf("Client %d joined Project %d\n", client_socket, room->projectID);
+    printf("Client %d joined Project chat room %d\n", client_socket, room->projectID);
 }
 
 // Remove client from chat room
@@ -69,7 +69,7 @@ void remove_client_from_room(ChatRoom *room, int client_socket) {
             }
             free(current);
             pthread_mutex_unlock(&room->room_mutex);
-            printf("Client %d left Project %d\n", client_socket, room->projectID);
+            printf("Client %d left Project chat room %d\n", client_socket, room->projectID);
             return;
         }
         prev = current;
