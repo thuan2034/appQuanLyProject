@@ -87,6 +87,7 @@ void broadcast_message(ChatRoom *room, int sender_socket, const char *message) {
             if (send(current->socket, message, strlen(message), 0) < 0) {
                 perror("Failed to send message to client");
             }
+            printf("Message sent to client %d: %s\n", current->socket, message);
         }
         current = current->next;
     }

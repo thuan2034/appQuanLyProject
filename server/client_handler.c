@@ -656,7 +656,7 @@ void *client_handler(void *args)
 
             // Construct the broadcast message in the format: MSG<projectID<userName><content>
             char broadcast_msg[2048];
-            snprintf(broadcast_msg, sizeof(broadcast_msg), "MSG<%d><%s><%s>", projectID, username, messageContent);
+            snprintf(broadcast_msg, sizeof(broadcast_msg), "MSG<%d><%s><%s>\n", projectID, username, messageContent);
 
             // Retrieve the chat room
             ChatRoom *chat_room = get_or_create_chat_room(chat_rooms, projectID);
