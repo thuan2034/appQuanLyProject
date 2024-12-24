@@ -24,7 +24,7 @@ PGconn *connect_db()
 int register_user(PGconn *conn, const char *client_message)
 {
     char query[512], username[50], email[50], password[50];
-    sscanf(client_message, "REG<%49[^>]><%49[^>]><%49[^>]>", username, email, password);
+    sscanf(client_message, "REG<%49[^>]><%49[^>]><%49[^>]>", email,username, password);
 
     snprintf(query, sizeof(query), "INSERT INTO \"USER\" (name, email, password, time_created) VALUES ('%s', '%s', '%s', CURRENT_TIMESTAMP)", username, email, password);
     PGresult *res = PQexec(conn, query);
@@ -257,7 +257,7 @@ char *get_tasks(PGconn *conn, int projectID)
         return NULL;
     }
     tasks[0] = '\0';
-    snprintf(query, sizeof(query), "SELECT T.\"taskID\", T.name AS task_name, T.status, U.name AS username "
+    snprintf(query, sizeof(query), "SELECT T.\"taskID\", T.name AS task_name, T.status,T.\"time_created\",T.\"time_end\", U.name AS username "
                                    "FROM \"TASK\" T "
                                    "LEFT JOIN \"USER\" U ON T.\"userID\" = U.\"userID\" "
                                    "WHERE T.\"projectID\" = %d",
@@ -282,7 +282,9 @@ char *get_tasks(PGconn *conn, int projectID)
         char *taskID = PQgetvalue(res, i, 0);
         char *taskName = PQgetvalue(res, i, 1);
         char *taskStatus = PQgetvalue(res, i, 2);
-        char *memberName = PQgetvalue(res, i, 3);
+        char *taskTimeCreated = PQgetvalue(res, i, 3);
+        char *taskTimeEnd = PQgetvalue(res, i, 4);
+        char *memberName = PQgetvalue(res, i, 5);
         strncat(tasks, "<", 1024 - strlen(tasks) - 1);
         strncat(tasks, taskID, 1024 - strlen(tasks) - 1); // Append taskID, 1024 - strlen(tasks) - 1);
         strncat(tasks, ">", 1024 - strlen(tasks) - 1);
@@ -293,13 +295,20 @@ char *get_tasks(PGconn *conn, int projectID)
         strncat(tasks, taskStatus, 1024 - strlen(tasks) - 1); // Append taskStatus, 1024 - strlen(tasks) - 1);
         strncat(tasks, ">", 1024 - strlen(tasks) - 1);
         strncat(tasks, "<", 1024 - strlen(tasks) - 1);
+        strncat(tasks, taskTimeCreated, 1024 - strlen(tasks) - 1); // Append taskTimeCreated, 1024 - strlen(tasks) - 1);
+        strncat(tasks, ">", 1024 - strlen(tasks) - 1);
+        strncat(tasks, "<", 1024 - strlen(tasks) - 1);
+        strncat(tasks, taskTimeEnd, 1024 - strlen(tasks) - 1); // Append taskTimeEnd, 1024 - strlen(tasks) - 1);
+        strncat(tasks, ">", 1024 - strlen(tasks) - 1);
+        strncat(tasks, "<", 1024 - strlen(tasks) - 1);
         strncat(tasks, memberName, 1024 - strlen(tasks) - 1); // Append memberName, 1024 - strlen(tasks) - 1);
         strncat(tasks, ">", 1024 - strlen(tasks) - 1);
     }
+    printf("%s\n", tasks);
     PQclear(res);
     return tasks;
 }
-int insert_task(PGconn *conn, int projectID, const char *taskName, const char *member_email)
+int insert_task(PGconn *conn, int projectID, const char *taskName, const char *member_email, const char *description,const char *time_created, const char *time_end)
 {
     char query[512];
     snprintf(query, sizeof(query), "WITH UserInProject AS ("
@@ -307,11 +316,11 @@ int insert_task(PGconn *conn, int projectID, const char *taskName, const char *m
                                    "    FROM \"PROJECT_MEMBER\" "
                                    "    WHERE \"projectID\" = %d AND \"userID\" = (SELECT \"userID\" FROM \"USER\" WHERE email = '%s')"
                                    ") "
-                                   "INSERT INTO \"TASK\" (\"projectID\", \"name\", \"status\", \"userID\") "
-                                   "SELECT %d, '%s', 'not_started', (SELECT \"userID\" FROM \"USER\" WHERE email = '%s') "
+                                   "INSERT INTO \"TASK\" (\"projectID\", \"name\", \"status\", \"userID\", \"description\", \"time_created\", \"time_end\") "
+                                   "SELECT %d, '%s', 'not_started', (SELECT \"userID\" FROM \"USER\" WHERE email = '%s'), '%s', '%s', '%s' "
                                    "WHERE EXISTS (SELECT 1 FROM UserInProject) "
                                    "RETURNING \"taskID\";",
-             projectID, member_email, projectID, taskName, member_email);
+             projectID, member_email, projectID, taskName, member_email, description, time_created, time_end);
     PGresult *res = PQexec(conn, query);
     if (PQresultStatus(res) != PGRES_TUPLES_OK || PQntuples(res) == 0)
     {
@@ -352,16 +361,13 @@ char *view_one_task(PGconn *conn, int taskID)
 {
     char query[512];
     snprintf(query, sizeof(query),
-             "SELECT T.\"taskID\", T.name, T.status, T.time_created, "
-             "U.email, STRING_AGG(A.file_name, '|') AS file_names, "
-             "C.\"commentID\", C.username, C.content, C.time "
+             "SELECT T.\"taskID\", T.name, T.status, T.time_created,T.time_end, T.description, "
+             "U.email, STRING_AGG(A.file_name, '|') AS file_names "
              "FROM \"TASK\" T "
              "JOIN \"USER\" U ON T.\"userID\" = U.\"userID\" "
              "LEFT JOIN \"ATTACHMENT\" A ON T.\"taskID\" = A.\"taskID\" "
-             "LEFT JOIN \"COMMENT\" C ON T.\"taskID\" = C.\"taskID\" "
              "WHERE T.\"taskID\" = %d "
-             "GROUP BY T.\"taskID\", T.name, T.status, T.time_created, U.email, "
-             "C.\"commentID\", C.username, C.content, C.time;",
+             "GROUP BY T.\"taskID\", T.name, T.status, T.time_created, U.email;",
              taskID);
 
     PGresult *res = PQexec(conn, query);
@@ -375,55 +381,121 @@ char *view_one_task(PGconn *conn, int taskID)
     if (rows == 0)
     {
         PQclear(res);
-        return NULL; // No data found
+        return NULL; // Không tìm thấy dữ liệu
     }
 
-    char *task = malloc(2048); // Allocate space for the formatted result
+    char *task = malloc(4096); // Cấp phát không gian cho kết quả định dạng
     if (task == NULL)
     {
         PQclear(res);
-        return NULL; // Memory allocation failed
+        return NULL; // Cấp phát bộ nhớ thất bại
     }
-    memset(task, 0, 2048); // Initialize task string
+    memset(task, 0, 4096); // Khởi tạo chuỗi task
 
-    // Extract data from the query result
+    // Trích xuất dữ liệu từ kết quả truy vấn
     char *name = PQgetvalue(res, 0, 1);
     char *status = PQgetvalue(res, 0, 2);
     char *time_created = PQgetvalue(res, 0, 3);
-    char *email = PQgetvalue(res, 0, 4);
-    char *file_names = PQgetvalue(res, 0, 5);
+    char *time_end = PQgetvalue(res, 0, 4);
+    char *description = PQgetvalue(res, 0, 5);
+    char *email = PQgetvalue(res, 0, 6);
+    char *file_names = PQgetvalue(res, 0, 7);
     if (file_names == NULL)
-        file_names = ""; // If no files, use an empty string
+        file_names = ""; // Nếu không có file, sử dụng chuỗi rỗng
+    if (description == NULL)
+        description = ""; // Nếu không có mô tả, sử dụng chuỗi rỗng
 
-    // Prepare initial part of task string
-    snprintf(task, 2048, "<%s><%s><%s><%s><%s><%s><", PQgetvalue(res, 0, 0), name, status, time_created, email, file_names);
-
-    // Process comments (if any)
-    char comments[2048] = "";
-    for (int i = 0; i < rows; i++)
-    {
-        char *commentID = PQgetvalue(res, i, 6);
-        char *username = PQgetvalue(res, i, 7);
-        char *content = PQgetvalue(res, i, 8);
-        char *comment_time = PQgetvalue(res, i, 9);
-
-        // Format the comment and append to comments string
-        snprintf(comments + strlen(comments), sizeof(comments) - strlen(comments),
-                 "[%s][%s][%s][%s]", commentID, username, content, comment_time);
-    }
-
-    // If there are no comments, ensure that it returns "[]"
-    if (strlen(comments) == 0)
-    {
-        snprintf(comments, sizeof(comments), "[]");
-    }
-
-    // Finalize task string with comments
-    snprintf(task + strlen(task), 2048 - strlen(task), "%s>", comments);
-
+    // Chuẩn bị phần đầu tiên của chuỗi task
+    snprintf(task, 4096, "<%s><%s><%s><%s><%s><%s><%s><%s>", 
+             PQgetvalue(res, 0, 0), name, status, time_created,time_end, email, file_names, description);
     PQclear(res);
     return task;
 }
+char *get_comments(PGconn *conn, int taskID, int offset)
+{
+    // Construct the SQL query
+    char query[512];
+    snprintf(query, sizeof(query),
+             "SELECT \"commentID\", username, content, time "
+             "FROM \"COMMENT\" "
+             "WHERE \"taskID\" = %d "
+             "ORDER BY time DESC "
+             "LIMIT 5 OFFSET %d;",
+             taskID, offset);
+
+    // Execute the query
+    PGresult *res = PQexec(conn, query);
+    if (PQresultStatus(res) != PGRES_TUPLES_OK)
+    {
+        fprintf(stderr, "Query failed: %s", PQerrorMessage(conn));
+        PQclear(res);
+        return NULL;
+    }
+
+    int rows = PQntuples(res);
+    if (rows == 0)
+    {
+        PQclear(res);
+        // Return "<>" if there are no comments
+        char *empty = malloc(3);
+        if (empty == NULL)
+        {
+            fprintf(stderr, "Memory allocation failed for empty comments.\n");
+            return NULL;
+        }
+        strcpy(empty, "<>");
+        return empty;
+    }
+
+    // Allocate memory for comments
+    char *comments = malloc(4096);
+    if (comments == NULL)
+    {
+        fprintf(stderr, "Memory allocation failed for comments.\n");
+        PQclear(res);
+        return NULL;
+    }
+    comments[0] = '\0'; // Initialize the string
+
+    // Keep track of the remaining buffer size
+    size_t remaining = 4096 - 1; // Reserve space for null terminator
+
+    for (int i = 0; i < rows; i++)
+    {
+        char *commentID = PQgetvalue(res, i, 0);
+        char *username = PQgetvalue(res, i, 1);
+        char *content = PQgetvalue(res, i, 2);
+        char *comment_time = PQgetvalue(res, i, 3);
+
+        // printf("%s %s %s %s\n", commentID, username, content, comment_time);
+
+        // Format each comment as <commentID><username><content><time>
+        // and append to the comments string
+        int written = snprintf(comments + strlen(comments), remaining, "<%s><%s><%s><%s>",
+                               commentID, username, content, comment_time);
+
+        if (written < 0)
+        {
+            fprintf(stderr, "snprintf error while formatting comments.\n");
+            free(comments);
+            PQclear(res);
+            return NULL;
+        }
+
+        if ((size_t)written >= remaining)
+        {
+            fprintf(stderr, "Comments buffer overflow. Truncated comments.\n");
+            break; // Prevent buffer overflow
+        }
+
+        remaining -= written;
+    }
+
+    // printf("%s\n", comments);
+    PQclear(res);
+    return comments;
+}
+
 int add_comment(PGconn *conn, int userID, int taskID, const char *comment)
 {
     char escaped_comment[1024];                                                // Buffer to hold the escaped comment

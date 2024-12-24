@@ -6,6 +6,7 @@
 #include <pthread.h>
 #include "client_handler.h"
 #include "session.h"
+#include "chat_room.h"
 
 #define PORT 6600
 
@@ -13,6 +14,8 @@ int main()
 {
     SessionManager session_manager;
     init_session_manager(&session_manager);
+    ChatRoomList chat_rooms;
+    init_chat_room_list(&chat_rooms); // Initialize chat rooms
     int server_fd, new_socket;
     struct sockaddr_in address;
     int addrlen = sizeof(address);
@@ -41,7 +44,7 @@ int main()
 
         client_args->session_manager = &session_manager;
         client_args->socket = new_socket;
-
+        client_args->chat_rooms = &chat_rooms; // Assign chat rooms
         if (pthread_create(&thread_id, NULL, client_handler, (void *)client_args) != 0)
         {
             perror("Thread creation failed");
@@ -55,5 +58,10 @@ int main()
     }
     printf("Server stopped\n");
     close(server_fd);
+     // Cleanup chat rooms
+    cleanup_chat_rooms(&chat_rooms);
+
+    // Cleanup session manager
+    // cleanup_session_manager(&session_manager);
     return 0;
 }
