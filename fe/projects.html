@@ -1,0 +1,240 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>My Projects</title>
+  <style>
+    /* Reset some basic elements */
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: Arial, sans-serif;
+      background-color: #f2f2f2;
+      display: flex;
+      height: 100vh;
+    }
+
+    /* Sidebar styling */
+    .sidebar {
+      width: 250px;
+      background-color: #ffffff;
+      padding: 20px;
+      box-shadow: 2px 0 5px rgba(0,0,0,0.1);
+      display: flex;
+      flex-direction: column;
+      justify-content: flex-start;
+    }
+
+    .sidebar h2 {
+      margin-bottom: 20px;
+      color: #333;
+    }
+
+    .sidebar button {
+      width: 100%;
+      padding: 10px 15px;
+      margin-bottom: 10px;
+      background-color: #4CAF50;
+      border: none;
+      color: white;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 16px;
+      transition: background-color 0.3s ease;
+    }
+
+    .sidebar button:hover {
+      background-color: #45a049;
+    }
+
+    /* Main content styling */
+    .main-content {
+      flex: 1;
+      padding: 20px;
+      overflow-y: auto;
+    }
+
+    .main-content h1 {
+      margin-bottom: 20px;
+      color: #333;
+    }
+
+    /* Projects grid */
+    .projects-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+      gap: 20px;
+    }
+
+    .project-card {
+      background-color: #fff;
+      padding: 15px;
+      border-radius: 8px;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+      transition: transform 0.2s, box-shadow 0.2s;
+      cursor: pointer;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+    }
+
+    .project-card:hover {
+      transform: translateY(-5px);
+      box-shadow: 0 4px 10px rgba(0,0,0,0.2);
+      background-color: #f9f9f9;
+    }
+
+    .project-card h3 {
+      margin-bottom: 10px;
+      color: #4CAF50;
+    }
+
+    .project-card p {
+      flex-grow: 1;
+      color: #555;
+    }
+
+    /* Create Project Form */
+    #createProjectForm {
+      background-color: #fff;
+      padding: 20px 30px;
+      border-radius: 8px;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+      margin-top: 20px;
+    }
+
+    #createProjectForm h3 {
+      margin-bottom: 15px;
+      color: #333;
+    }
+
+    #createProjectForm input[type="text"], 
+    #createProjectForm textarea {
+      width: 100%;
+      padding: 10px;
+      margin-bottom: 15px;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+    }
+
+    #createProjectForm button {
+      padding: 10px 15px;
+      background-color: #4CAF50;
+      border: none;
+      color: white;
+      border-radius: 4px;
+      cursor: pointer;
+      margin-right: 10px;
+      transition: background-color 0.3s ease;
+    }
+
+    #createProjectForm button:hover {
+      background-color: #45a049;
+    }
+
+    #createProjectForm #cancelProjectBtn {
+      background-color: #f44336;
+    }
+
+    #createProjectForm #cancelProjectBtn:hover {
+      background-color: #e53935;
+    }
+
+    #createProjectMessage {
+      margin-top: 10px;
+      font-weight: bold;
+    }
+
+    /* Responsive adjustments */
+    @media (max-width: 768px) {
+      body {
+        flex-direction: column;
+      }
+
+      .sidebar {
+        width: 100%;
+        flex-direction: row;
+        align-items: center;
+        justify-content: space-around;
+        box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+      }
+
+      .sidebar h2 {
+        margin-bottom: 0;
+        font-size: 18px;
+      }
+
+      .main-content {
+        padding: 10px;
+      }
+
+      .projects-grid {
+        grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+        gap: 15px;
+      }
+    }
+    #userInfo {
+    margin-bottom: 20px;
+  }
+
+  #userInfo p {
+    margin-bottom: 5px;
+    color: #555;
+    font-size: 14px;
+  }
+
+  /* Responsive adjustments for user info */
+  @media (max-width: 768px) {
+    #userInfo {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+
+    #userInfo p {
+      text-align: center;
+    }
+  }
+
+  </style>
+</head>
+<body>
+  <!-- Sidebar with Logout and Create Project buttons -->
+  <div class="sidebar">
+    <h2>Menu</h2>
+    <div id="userInfo">
+      <p id="username">Xin chào, </p>
+      <p id="email">Email: </p>
+    </div>
+    <button id="createProjectBtn">Tạo dự án mới</button>
+    <button id="logoutBtn">Đăng xuất</button>
+    
+  </div>
+
+  <!-- Main content area -->
+  <div class="main-content">
+    <h1>Dự án của tôi</h1>
+
+    <!-- Projects Grid -->
+    <div id="projectList" class="projects-grid">
+      <!-- Project cards will be dynamically inserted here -->
+    </div>
+
+    <!-- Create Project Form -->
+    <div id="createProjectForm" style="display: none;">
+      <h3>Tạo dự án</h3>
+      <input type="text" id="newProjectName" placeholder="Project Name">
+      <textarea id="newProjectDescription" placeholder="Project Description" rows="4"></textarea>
+      <button id="submitProjectBtn">Tạo</button>
+      <button id="cancelProjectBtn">Hủy</button>
+      <p id="createProjectMessage"></p>
+    </div>
+  </div>
+
+  <script src="projects.js"></script>
+</body>
+</html>

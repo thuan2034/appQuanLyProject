@@ -304,7 +304,7 @@ char *get_tasks(PGconn *conn, int projectID)
         strncat(tasks, memberName, 1024 - strlen(tasks) - 1); // Append memberName, 1024 - strlen(tasks) - 1);
         strncat(tasks, ">", 1024 - strlen(tasks) - 1);
     }
-    printf("%s\n", tasks);
+    // printf("%s\n", tasks);
     PQclear(res);
     return tasks;
 }

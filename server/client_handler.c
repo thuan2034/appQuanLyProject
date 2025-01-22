@@ -27,7 +27,7 @@ void *client_handler(void *args)
 
         if (strncmp(client_message, "REG", 3) == 0)
         {
-            printf("Client message: %s\n", client_message);
+            printf("Client message: %s", client_message);
             int status = register_user(conn, client_message);
             if (status == 1)
             {
@@ -42,7 +42,7 @@ void *client_handler(void *args)
         }
         else if (strncmp(client_message, "LOG", 3) == 0)
         {
-            printf("Client message: %s\n", client_message);
+            printf("Client message: %s", client_message);
             // username_userID format: <username><userID>
             char *username_userID = login_user(conn, client_message);
 
@@ -69,7 +69,7 @@ void *client_handler(void *args)
         }
         else if (strncmp(client_message, "OUT", 3) == 0)
         {
-            printf("Client message: %s\n", client_message);
+            printf("Client message: %s", client_message);
             char token[32];
             strncpy(token, client_message + 4, sizeof(token) - 1);
             token[sizeof(token) - 1] = '\0';
@@ -81,7 +81,7 @@ void *client_handler(void *args)
         }
         else if (strncmp(client_message, "PRJ", 3) == 0)
         {
-            printf("Client message: %s\n", client_message);
+            printf("Client message: %s", client_message);
             char token[32];
             strncpy(token, client_message + 4, sizeof(token) - 1);
             token[sizeof(token) - 1] = '\0';
@@ -110,7 +110,7 @@ void *client_handler(void *args)
         }
         else if (strncmp(client_message, "PRD", 3) == 0)
         {
-            printf("Client message: %s\n", client_message);
+            printf("Client message: %s", client_message);
             char token[32];
             int projectID;
             sscanf(client_message, "PRD<%d><%s>", &projectID, token);
@@ -144,7 +144,7 @@ void *client_handler(void *args)
         }
         else if (strncmp(client_message, "PRO", 3) == 0)
         {
-            printf("Client message: %s\n", client_message);
+            printf("Client message: %s", client_message);
             char token[32], projectName[50], projectDescription[512];
             sscanf(client_message, "PRO<%[^>]><%[^>]><%[^>]>", projectName, projectDescription, token);
             token[sizeof(token) - 1] = '\0';
@@ -170,7 +170,7 @@ void *client_handler(void *args)
         }
         else if (strncmp(client_message, "INV", 3) == 0)
         {
-            printf("Client message: %s\n", client_message);
+            printf("Client message: %s", client_message);
             char token[32], email[50];
             int projectID;
             sscanf(client_message, "INV<%d><%[^>]><%[^>]>", &projectID, email, token);
@@ -187,19 +187,19 @@ void *client_handler(void *args)
             if (status == -1)
             {
                 send(client_sock, "404 <User not found>\n", strlen("404 <User not found>\n"), 0);
-                printf("Server respone: 404 <User not found>\n");
+                printf("Server response: 404 <User not found>\n");
                 continue;
             }
             else if (status == -2)
             {
                 send(client_sock, "403 <User already in project>\n", strlen("403 <User already in project>\n"), 0);
-                printf("Server respone: 403 <User already in project>\n");
+                printf("Server response: 403 <User already in project>\n");
                 continue;
             }
             else if (status == -3)
             {
                 send(client_sock, "500 <Unable to invite>\n", strlen("500 <Unable to invite>\n"), 0);
-                printf("Server respone: 500 <Unable to invite>\n");
+                printf("Server response: 500 <Unable to invite>\n");
                 continue;
             }
             send(client_sock, "200 <Invitation successful>\n", strlen("200 <Invitation successful>\n"), 0);
@@ -207,7 +207,7 @@ void *client_handler(void *args)
         }
         else if (strncmp(client_message, "MEM", 3) == 0)
         {
-            printf("Client message: %s\n", client_message);
+            printf("Client message: %s", client_message);
             char token[32];
             int projectID;
             sscanf(client_message, "MEM<%d><%[^>]>", &projectID, token);
@@ -235,7 +235,7 @@ void *client_handler(void *args)
         }
         else if (strncmp(client_message, "VTL", 3) == 0)
         {
-            printf("Client message: %s\n", client_message);
+            printf("Client message: %s", client_message);
             char token[32];
             int projectID;
             sscanf(client_message, "VTL<%d><%[^>]>", &projectID, token);
@@ -264,7 +264,7 @@ void *client_handler(void *args)
         }
         else if (strncmp(client_message, "TSK", 3) == 0)
         {
-            printf("Client message: %s\n", client_message);
+            printf("Client message: %s", client_message);
             char token[32], taskName[50], member_email[50], description[1024], time_created[128], time_end[128];
             int projectID;
             sscanf(client_message, "TSK<%d><%[^>]><%[^>]><%[^>]><%[^>]><%[^>]><%[^>]>", &projectID, taskName,description, member_email,time_created, time_end, token);
@@ -290,7 +290,7 @@ void *client_handler(void *args)
         }
         else if (strncmp(client_message, "ATH", 3) == 0)
         {
-            printf("Client message: %s\n", client_message);
+            printf("Client message: %s", client_message);
             char token[32], file_name[50];
             int taskID;
             long file_size;
@@ -354,7 +354,7 @@ void *client_handler(void *args)
         }
         else if (strncmp(client_message, "VOT", 3) == 0)
         {
-            printf("Client message: %s\n", client_message);
+            printf("Client message: %s", client_message);
             int taskID;
             char token[32];
             sscanf(client_message, "VOT<%d><%s>", &taskID, token);
@@ -380,7 +380,7 @@ void *client_handler(void *args)
             task_info = NULL;
         }
         else if(strncmp(client_message,"VCM",3) == 0){
-            printf("Client message: %s\n", client_message);
+            printf("Client message: %s", client_message);
             int taskID, offset;
             char token[32];
             sscanf(client_message, "VCM<%d><%d><%s>", &taskID,&offset, token);
@@ -407,7 +407,7 @@ void *client_handler(void *args)
         }
         else if (strncmp(client_message, "CMT", 3) == 0)
         {
-            printf("Client message: %s\n", client_message);
+            printf("Client message: %s", client_message);
             char token[32], comment[256];
             int taskID, userID;
             sscanf(client_message, "CMT<%d><%[^>]><%s>", &taskID, comment, token);
@@ -416,7 +416,7 @@ void *client_handler(void *args)
             if (userSession == NULL)
             {
                 send(client_sock, "401 <Unauthorized: Invalid token>\n", strlen("401 <Unauthorized: Invalid token>\n"), 0);
-                printf("Server respone: 401 <Unauthorized: Invalid token>\n");
+                printf("Server response: 401 <Unauthorized: Invalid token>\n");
                 continue;
             }
             userID = userSession->userID;
@@ -424,15 +424,15 @@ void *client_handler(void *args)
             if (status == -1)
             {
                 send(client_sock, "403 <You don't have permission to add comment to this task>\n", strlen("403 <You don't have permission to add comment to this task>\n"), 0);
-                printf("Server respone: 403 <You don't have permission to add comment to this task>\n");
+                printf("Server response: 403 <You don't have permission to add comment to this task>\n");
                 continue;
             }
             send(client_sock, "200 <Comment added successfully>\n", strlen("200 <Comment added successfully>\n"), 0);
-            printf("Server respone: 200 <Comment added successfully>\n");
+            printf("Server response: 200 <Comment added successfully>\n");
         }
         else if (strncmp(client_message, "STT", 3) == 0)
         {
-            printf("Client message: %s\n", client_message);
+            printf("Client message: %s", client_message);
             char token[32], status[32];
             int taskID, userID;
             sscanf(client_message, "STT<%d><%[^>]><%s>", &taskID, status, token);
@@ -441,7 +441,7 @@ void *client_handler(void *args)
             if (userSession == NULL)
             {
                 send(client_sock, "401 <Unauthorized: Invalid token>\n", strlen("401 <Unauthorized: Invalid token>\n"), 0);
-                printf("Server respone: 401 <Unauthorized: Invalid token>\n");
+                printf("Server response: 401 <Unauthorized: Invalid token>\n");
                 continue;
             }
             userID = userSession->userID;
@@ -449,15 +449,15 @@ void *client_handler(void *args)
             if (result == -1)
             {
                 send(client_sock, "403 <You don't have permission to update this task status>\n", strlen("403 <You don't have permission to update this task status>\n"), 0);
-                printf("Server respone: 403 <You don't have permission to update this task status>\n");
+                printf("Server response: 403 <You don't have permission to update this task status>\n");
                 continue;
             }
             send(client_sock, "200 <Task status updated successfully>\n", strlen("200 <Task status updated successfully>\n"), 0);
-            printf("Server respone: 200 <Task status updated successfully>\n");
+            printf("Server response: 200 <Task status updated successfully>\n");
         }
         else if (strncmp(client_message, "DOW", 3) == 0)
         {
-            printf("Client message: %s\n", client_message);
+            printf("Client message: %s", client_message);
             char token[32], fileName[64];
             int taskID;
             sscanf(client_message, "DOW<%d><%[^>]><%s>", &taskID, fileName, token);
@@ -499,7 +499,7 @@ void *client_handler(void *args)
             printf("Server response: 200 <File downloaded successfully>\n");
         }
         else if (strncmp(client_message, "JCH", 3) == 0){
-            printf("Client message: %s\n", client_message);
+            printf("Client message: %s", client_message);
             int projectID;
             char token[32];
             // Parse the message: JCH<projectID><token>
@@ -540,7 +540,7 @@ void *client_handler(void *args)
         }
         else if (strncmp(client_message, "VCH", 3) == 0)
         {
-            printf("Client message: %s\n", client_message);
+            printf("Client message: %s", client_message);
 
             // Variables to hold parsed data
             char token[32];
@@ -600,7 +600,7 @@ void *client_handler(void *args)
         }
         else if (strncmp(client_message, "MSG", 3) == 0)
         {
-            printf("Client message: %s\n", client_message);
+            printf("Client message: %s", client_message);
             int projectID;
             char token[32];
             char messageContent[1024];
@@ -680,7 +680,7 @@ void *client_handler(void *args)
         }
          else if (strncmp(client_message, "LCH", 3) == 0)
         {
-            printf("Client message: %s\n", client_message);
+            printf("Client message: %s", client_message);
             int projectID;
             char token[32];
             // Parse the message: LCH<projectID><token>
@@ -723,9 +723,9 @@ void *client_handler(void *args)
         }
         else
         {
-            printf("Client message: %s\n", client_message);
+            printf("Client message: %s", client_message);
             send(client_sock, "400 <Invalid request>\n", strlen("400 <Invalid request>\n"), 0);
-            printf("Server respone: 400 <Invalid request>\n");
+            printf("Server response: 400 <Invalid request>\n");
         }
         memset(client_message, 0, sizeof(client_message));
     }

@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Chat Room</title>
+  <link rel="stylesheet" href="chatroom.css"> <!-- Updated CSS link -->
+</head>
+<body>
+  <div class="chat-container">
+    <div class="sidebar">
+      <header>
+        <h1>Chat Room</h1>
+      </header>
+      <button id="returnBtn">Back to Project</button>
+      <button id="logoutBtn">Logout</button>
+    </div>
+    
+    <div class="chat-main">
+      <div id="chatMessages" class="chat-messages"></div>
+      
+      <div class="chat-input-container">
+        <textarea id="chatInput" placeholder="Type a message..."></textarea>
+        <button id="sendChatBtn">Send</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="chatroom.js"></script>
+</body>
+</html>

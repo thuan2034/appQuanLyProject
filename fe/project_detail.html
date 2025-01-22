@@ -1,0 +1,448 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Chi tiết dự án</title>
+  <style>
+    /* Reset some basic elements */
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: Arial, sans-serif;
+      background-color: #f2f2f2;
+      display: flex;
+      height: 100vh;
+      overflow: hidden;
+    }
+
+    /* Sidebar styling */
+    .sidebar {
+      width: 250px;
+      background-color: #ffffff;
+      padding: 20px;
+      box-shadow: 2px 0 5px rgba(0,0,0,0.1);
+      display: flex;
+      flex-direction: column;
+      justify-content: flex-start;
+    }
+
+    .sidebar h2 {
+      margin-bottom: 20px;
+      color: #333;
+    }
+
+    .sidebar button {
+      width: 100%;
+      padding: 10px 15px;
+      margin-bottom: 10px;
+      background-color: #4CAF50;
+      border: none;
+      color: white;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 16px;
+      transition: background-color 0.3s ease;
+    }
+
+    .sidebar button:hover {
+      background-color: #45a049;
+    }
+
+    /* Return Button Styling */
+    .sidebar .return-btn {
+      background-color: #4CAF50;
+    }
+
+    .sidebar .return-btn:hover {
+      background-color: #45a049;
+    }
+
+    /* Main content styling */
+    .main-content {
+      flex: 1;
+      padding: 20px;
+      overflow-y: auto;
+    }
+
+    .main-content h1 {
+      margin-bottom: 20px;
+      color: #333;
+    }
+
+    .project-info p {
+      margin-bottom: 10px;
+      color: #555;
+    }
+
+    .project-info strong {
+      color: #333;
+    }
+
+    /* Create Task Form */
+    #createTaskForm {
+      background-color: #fff;
+      padding: 20px 30px;
+      border-radius: 8px;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+      margin-top: 20px;
+    }
+
+    #createTaskForm label {
+      display: block;
+      margin-bottom: 5px;
+      color: #333;
+      font-weight: bold;
+    }
+
+    #createTaskForm input[type="date"] {
+      width: 100%;
+      padding: 10px;
+      margin-bottom: 15px;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+    }
+
+    #createTaskForm h3 {
+      margin-bottom: 15px;
+      color: #333;
+    }
+
+    #createTaskForm input[type="text"], 
+    #createTaskForm select {
+      width: 100%;
+      padding: 10px;
+      margin-bottom: 15px;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+    }
+
+    #createTaskForm button {
+      padding: 10px 15px;
+      background-color: #4CAF50;
+      border: none;
+      color: white;
+      border-radius: 4px;
+      cursor: pointer;
+      margin-right: 10px;
+      transition: background-color 0.3s ease;
+    }
+
+    #createTaskForm button:hover {
+      background-color: #45a049;
+    }
+
+    #createTaskForm #cancelTaskBtn {
+      background-color: #f44336;
+    }
+
+    #createTaskForm #cancelTaskBtn:hover {
+      background-color: #e53935;
+    }
+
+    #createTaskMessage {
+      margin-top: 10px;
+      font-weight: bold;
+    }
+
+    /* Tasks Section */
+    #tasksSection {
+      margin-top: 30px;
+    }
+
+    #tasksSection h2 {
+      margin-bottom: 15px;
+      color: #333;
+    }
+
+    .tasks-list {
+      list-style-type: none;
+      padding: 0;
+    }
+
+    .tasks-list li {
+      padding: 10px;
+      margin-bottom: 10px;
+      background-color: #fff;
+      border-radius: 6px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+      cursor: pointer;
+      transition: background-color 0.3s, transform 0.2s;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .tasks-list li:hover {
+      background-color: #f9f9f9;
+      transform: translateY(-2px);
+      box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+    }
+
+    .tasks-list li .task-info {
+      flex: 1;
+    }
+
+    .tasks-list li .task-id {
+      font-size: 12px;
+      color: #888;
+      margin-left: 10px;
+    }
+
+    /* Right Sidebar Styles */
+    .right-sidebar {
+      width: 250px;
+      background-color: #ffffff;
+      padding: 20px;
+      box-shadow: -2px 0 5px rgba(0,0,0,0.1);
+      display: flex;
+      flex-direction: column;
+      justify-content: flex-start;
+    }
+
+    .right-sidebar h2 {
+      margin-bottom: 20px;
+      color: #333;
+    }
+
+    .members-list {
+      list-style-type: none;
+      padding: 0;
+      margin-bottom: 20px;
+    }
+
+    .members-list li {
+      padding: 8px 0;
+      border-bottom: 1px solid #ddd;
+      color: #555;
+    }
+
+    .members-list li:last-child {
+      border-bottom: none;
+    }
+
+    /* Invite Member Form */
+    #inviteMemberForm {
+      background-color: #fff;
+      padding: 15px;
+      border-radius: 6px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    }
+
+    #inviteMemberForm h3 {
+      margin-bottom: 10px;
+      color: #333;
+    }
+
+    #inviteMemberForm input[type="text"] {
+      width: 100%;
+      padding: 8px;
+      margin-bottom: 10px;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+    }
+
+    #inviteMemberForm button {
+      width: 100%;
+      padding: 10px;
+      background-color: #2196F3;
+      border: none;
+      color: white;
+      border-radius: 4px;
+      cursor: pointer;
+      transition: background-color 0.3s ease;
+    }
+
+    #inviteMemberForm button:hover {
+      background-color: #1E88E5;
+    }
+
+    #inviteResult {
+      margin-top: 10px;
+      font-weight: bold;
+    }
+
+    /* Logout Button Styling in Right Sidebar */
+    .right-sidebar .logout-btn {
+      margin-top: auto;
+      background-color: #f44336;
+    }
+
+    .right-sidebar .logout-btn:hover {
+      background-color: #e53935;
+    }
+
+    /* Responsive Design */
+    @media (max-width: 1200px) {
+      .right-sidebar {
+        display: none; /* Hide right sidebar on smaller screens */
+      }
+      .container {
+        flex-direction: column;
+      }
+      .sidebar {
+        width: 100%;
+        border-right: none;
+        border-bottom: 1px solid #ccc;
+      }
+      .main-content {
+        flex: none;
+        height: calc(100vh - 60px); /* Adjust based on sidebar height */
+        padding: 15px;
+      }
+      .tasks-list li {
+        flex-direction: column;
+        align-items: flex-start;
+      }
+      .tasks-list li .task-id {
+        margin-left: 0;
+        margin-top: 5px;
+      }
+    }
+
+    /* Chat Messages Container */
+    #chatMessages {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    /* Base Chat Message Style */
+    .chat-message {
+      max-width: 60%;
+      padding: 10px 15px;
+      border-radius: 15px;
+      position: relative;
+      word-wrap: break-word;
+    }
+
+    /* Incoming Messages (Other Users) */
+    .chat-message.left {
+      background-color: #f1f0f0;
+      align-self: flex-start;
+      text-align: left;
+    }
+
+    /* Outgoing Messages (Current User) */
+    .chat-message.right {
+      background-color: #dcf8c6;
+      align-self: flex-end;
+      text-align: right;
+    }
+
+    /* Message Meta Information */
+    .chat-message .meta {
+      font-size: 12px;
+      color: #555;
+      margin-bottom: 5px;
+    }
+
+    /* Optional: Avatar or Initials */
+    .chat-message .avatar {
+      width: 30px;
+      height: 30px;
+      background-color: #bbb;
+      border-radius: 50%;
+      display: inline-block;
+      margin-right: 10px;
+      vertical-align: middle;
+    }
+
+    /* Custom Popup Styles for Gantt */
+    .details-container {
+      padding: 10px;
+    }
+
+    .details-container h5 {
+      margin-bottom: 5px;
+    }
+
+    .details-container p {
+      margin: 2px 0;
+    }
+
+  </style>
+
+  <!-- Frappe Gantt CSS -->
+  <link rel="stylesheet" href="https://unpkg.com/frappe-gantt@0.5.0/dist/frappe-gantt.css">
+
+  <!-- Frappe Gantt JS -->
+  <script src="https://unpkg.com/frappe-gantt@0.5.0/dist/frappe-gantt.min.js"></script>
+</head>
+<body>
+  <div class="sidebar">
+    <h2>Menu</h2>
+    <button id="returnBtn" class="return-btn">Quay về trang chủ</button>
+    <button id="chatroomBtn">Chat</button>
+    <button id="teamsCallBtn" disabled>Teams Call (Coming soon)</button>
+    <button id="logoutBtn" style="margin-top: auto;">Đăng xuất</button>
+  </div>
+
+  <div class="main-content">
+    <h1>Chi tiết dự án</h1>
+    <div class="project-info">
+      <p><strong>Tên:</strong> <span id="projectName"></span></p>
+      <p><strong>Tạo bởi:</strong> <span id="projectCreator"></span></p>
+      <p><strong>Mô tả:</strong></p>
+      <p id="projectDescription"></p>
+    </div>
+    <!-- Tasks Section -->
+    <div id="tasksSection">
+      <h2>Công việc</h2>
+      <ul id="tasksList" class="tasks-list">
+        <!-- Task items will be dynamically inserted here -->
+      </ul>
+    </div>
+    <!-- Gantt Chart Section -->
+    <div id="ganttChart" style="margin-top: 40px;">
+      <h2>Lịch trình dự án</h2>
+      <div id="gantt"></div>
+    </div>
+    <!-- Create New Task Form -->
+    <div id="createTaskForm">
+      <h3>Tạo công việc mới</h3>
+      <input type="text" id="newTaskName" placeholder="Tên công việc" required>
+      <input type="text" id="newTaskDescription" placeholder="Mô tả">
+      
+      <!-- New Time Start Input -->
+      <label for="timeStart">Thời gian bắt đầu:</label>
+      <input type="date" id="timeStart" required>
+      
+      <!-- New Time End Input -->
+      <label for="timeEnd">Thời gian kết thúc:</label>
+      <input type="date" id="timeEnd" required>
+      
+      <select id="assignTo">
+        <option value="">Người phụ trách</option>
+        <!-- Dynamically populated -->
+      </select>
+      <button id="submitTaskBtn">Tạo công việc</button>
+      <button id="cancelTaskBtn">Hủy</button>
+      <p id="createTaskMessage"></p>
+    </div>
+  </div>
+
+  <!-- Right Sidebar for Members and Invite Member -->
+  <div class="right-sidebar">
+    <h2>Thành viên</h2>
+    <ul id="membersList" class="members-list">
+      <!-- Members will be dynamically inserted here -->
+    </ul>
+
+    <!-- Invite Member Form -->
+    <div id="inviteMemberForm">
+      <h3>Mời Thành viên</h3>
+      <input type="text" id="inviteEmail" placeholder="Nhập email">
+      <button id="inviteBtn">Mời</button>
+      <p id="inviteResult"></p>
+    </div>
+
+    <!-- <button id="logoutBtnRight" class="logout-btn">Logout</button> -->
+  </div>
+
+  <script src="project_detail.js"></script>
+</body>
+</html>

@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Task Detail</title>
+  <style>
+    /* Existing CSS styles */
+    body {
+      margin: 0;
+      font-family: Arial, sans-serif;
+    }
+    .container {
+      display: flex;
+      height: 100vh;
+    }
+    .sidebar {
+      width: 250px;
+      background: #f2f2f2;
+      padding: 20px;
+      box-sizing: border-box;
+      border-right: 1px solid #ccc;
+      display: flex;
+      flex-direction: column;
+    }
+    .sidebar h2 {
+      margin-top: 0;
+    }
+    .sidebar button {
+      width: 100%;
+      margin-bottom: 10px;
+      padding: 8px;
+      box-sizing: border-box;
+      cursor: pointer;
+    }
+    .main-content {
+      flex: 1;
+      padding: 20px;
+      box-sizing: border-box;
+      overflow-y: auto;
+    }
+    .comments-section {
+      margin-top: 30px;
+    }
+    .comments-list {
+      list-style-type: none;
+      padding: 0;
+    }
+    .comments-list li {
+      padding: 10px;
+      border-bottom: 1px solid #ddd;
+    }
+    /* Responsive Design */
+    @media (max-width: 1200px) {
+      .container {
+        flex-direction: column;
+      }
+      .sidebar {
+        width: 100%;
+        border-right: none;
+        border-bottom: 1px solid #ccc;
+      }
+      .main-content {
+        flex: none;
+        height: calc(100vh - 60px); /* Adjust based on sidebar height */
+      }
+    }
+    /* Styles for Forms */
+    .form-group {
+      margin-bottom: 15px;
+    }
+    label {
+      display: block;
+      margin-bottom: 5px;
+      font-weight: bold;
+    }
+    select, textarea, input[type="text"], input[type="file"] {
+      width: 100%;
+      padding: 8px;
+      box-sizing: border-box;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+    }
+    button {
+      padding: 8px 15px;
+      margin-right: 10px;
+      cursor: pointer;
+      border: none;
+      border-radius: 4px;
+      background-color: #4CAF50;
+      color: white;
+    }
+    button:hover {
+      background-color: #45a049;
+    }
+    #updateStatusMessage, #addCommentMessage, #uploadAttachmentMessage {
+      margin-top: 10px;
+      font-weight: bold;
+    }
+    /* Disabled Button Style */
+    button:disabled {
+      background-color: #ccc;
+      cursor: not-allowed;
+    }
+    /* Styles for "See More Comments" Button */
+    #seeMoreCommentsBtn {
+      margin-top: 10px;
+      background-color: #008CBA;
+    }
+    #seeMoreCommentsBtn:hover {
+      background-color: #007B9E;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <!-- Left Sidebar -->
+    <div class="sidebar">
+      <h2>Task Menu</h2>
+      <button id="backToProjectBtn">Quay về dự án</button>
+      <button id="logoutBtn" style="margin-top: auto;">Đăng xuất</button>
+    </div>
+
+    <!-- Main Content -->
+    <div class="main-content">
+      <h1>Task Detail</h1>
+      <p><strong>ID:</strong> <span id="taskID"></span></p>
+      <p><strong>Tên công việc:</strong> <span id="taskName"></span></p>
+      <p><strong>Trạng thái:</strong> <span id="taskStatus"></span></p>
+      <p><strong>Thời gian bắt đầu:</strong> <span id="taskTimeStart"></span></p>
+      <p><strong>Thời gian kết thúc:</strong> <span id="taskTimeEnd"></span></p>
+      <p><strong>Người phụ trách:</strong> <span id="taskAssignedTo"></span></p>
+      <p><strong>Miêu tả:</strong></p>
+      <p id="taskDescription"></p>
+      <p><strong>Tệp đính kèm:</strong></p>
+      <ul id="attachmentsList"></ul>
+
+      <!-- Update Status Form -->
+      <div id="updateStatusForm" style="display:none;">
+        <h3>Cập nhật trạng thái</h3>
+        <div class="form-group">
+          <label for="newStatus">Trạng thái mới:</label>
+          <select id="newStatus">
+            <option value="">Chọn trạng thái</option>
+            <option value="Not Started">Chưa bắt đầu</option>
+            <option value="In Progress">Đang làm</option>
+            <option value="Completed">Hoàn thành</option>
+            <!-- Add more status options as needed -->
+          </select>
+        </div>
+        <button id="submitStatusBtn">Cập nhật</button>
+        <button id="cancelStatusBtn">Huỷ</button>
+        <p id="updateStatusMessage"></p>
+      </div>
+
+      <!-- Add Comment Form -->
+      <div id="addCommentForm">
+        <h3>Thêm nhận xét</h3>
+        <div class="form-group">
+          <label for="newComment">Nhận xét:</label>
+          <textarea id="newComment" rows="4" placeholder="Enter your comment"></textarea>
+        </div>
+        <button id="submitCommentBtn">Thêm</button>
+        <p id="addCommentMessage"></p>
+      </div>
+
+      <!-- Upload Attachment Form -->
+      <div id="uploadAttachmentForm" style="display: none;">
+        <h3>Tải file lên</h3>
+        <div class="form-group">
+          <label for="attachmentFile">Chọn file:</label>
+          <input type="file" id="attachmentFile" />
+        </div>
+        <button id="uploadAttachmentBtn">Upload</button>
+        <p id="uploadAttachmentMessage"></p>
+      </div>
+
+      <!-- Comments Section -->
+      <div class="comments-section">
+        <h2>Nhận xét</h2>
+        <ul id="commentsList" class="comments-list"></ul>
+        <!-- "See More Comments" Button -->
+        <button id="seeMoreCommentsBtn" style="display: none;">See More Comments</button>
+        <p id="commentsLoadingMessage" style="display: none;">Loading comments...</p>
+        <p id="commentsErrorMessage" style="display: none; color: red;"></p>
+      </div>
+    </div>
+  </div>
+  <script src="task_detail.js"></script>
+</body>
+</html>

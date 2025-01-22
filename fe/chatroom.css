@@ -1,0 +1,208 @@
+/* Reset some default browser styles */
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+  }
+  
+  html, body {
+    font-family: Arial, sans-serif;
+    height: 100%;
+    background-color: #f4f6f9;
+    display: flex;
+    justify-content: flex-start;
+    align-items: stretch;
+    width: 100%;
+    margin: 0;
+  }
+  
+  /* Main chat container */
+  .chat-container {
+    display: flex;
+    width: 100%;
+    height: 100vh;  /* Ensure the chat container takes the full height of the viewport */
+    overflow: hidden;
+}
+  
+  /* Sidebar styling */
+  .sidebar {
+    width: 250px;  /* Fixed width for the sidebar */
+    background-color: #ffffff;
+    color: #4caf50;
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-start;
+    padding: 20px;
+    box-shadow: 2px 0 10px rgba(0, 0, 0, 0.1);
+    height: 100vh; /* Ensure the sidebar takes full height */
+  }
+  
+  .sidebar header {
+    font-size: 22px;
+    margin-bottom: 30px;
+  }
+  
+  button {
+    padding: 10px 15px;
+    margin-bottom: 20px;
+    background-color:#4caf50;
+    border: none;
+    border-radius: 5px;
+    color:white;
+    cursor: pointer;
+    font-size: 16px;
+    width: 100%;
+  }
+  
+  button:hover {
+    background-color: #f1f1f1;
+  }
+  
+  /* Main chat area */
+  .chat-main {
+    flex-grow: 1;
+    display: flex;
+    flex-direction: column;
+    background-color: white;
+    padding: 20px;
+    justify-content: space-between;
+    height: 100vh; /* Ensure it fills the full screen height */
+    overflow: hidden;
+  }
+  
+  /* Chat messages styling */
+  .chat-messages {
+    flex-grow: 1;
+    overflow-y: auto;
+    margin-bottom: 10px;
+    padding: 20px;
+    background-color: #fafafa;
+    border: 1px solid #e0e0e0;
+    border-radius: 8px;
+    font-size: 18px; /* Increased font size */
+    word-wrap: break-word; /* Ensure words break properly */
+  overflow-x: hidden; /* Prevent horizontal scrolling */
+  }
+  
+  .chat-message {
+    display: flex;
+    flex-direction: column;
+    margin-bottom: 12px;
+  }
+  
+  .chat-message.left {
+    align-items: flex-start;
+  }
+  
+  .chat-message.right {
+    align-items: flex-end;
+  }
+  
+  .meta {
+    font-size: 12px;
+    color: #888;
+    margin-bottom: 5px;
+  }
+  
+  .chat-message .content {
+    background-color: #e0f7fa;
+    padding: 10px;
+    border-radius: 8px;
+    max-width: 75%;
+    word-wrap: break-word;
+    word-break: break-word; 
+    font-size: 20px; 
+    white-space: pre-wrap; 
+  }
+  
+  .chat-message.right .content {
+    background-color: #4caf50;
+    color: white;
+  }
+  
+  .chat-message.left .content {
+    background-color: #f1f1f1;
+  }
+  
+  /* Input area styling */
+  .chat-input-container {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-top: 1px solid #e0e0e0;
+    padding: 10px;
+  }
+  
+  textarea {
+    width: 85%;
+    padding: 10px;
+    font-size: 16px; /* Larger font for input */
+    border: 1px solid #ddd;
+    border-radius: 5px;
+    resize: none;
+    height: 50px;
+    background-color: #f9f9f9;
+    word-wrap: break-word;
+  }
+  
+  button#sendChatBtn {
+    width: 12%; /* Reduced width of the send button */
+  padding: 10px;
+  font-size: 16px;
+  background-color: #4caf50;
+  color: white;
+  border: none;
+  border-radius: 5px;
+  cursor: pointer;
+  transition: background-color 0.3s ease;
+  }
+  
+  button#sendChatBtn:hover {
+    background-color: #45a049;
+  }
+  
+  /* Scrollbar customization */
+  .chat-messages::-webkit-scrollbar {
+    width: 8px;
+  }
+  
+  .chat-messages::-webkit-scrollbar-thumb {
+    background-color: #4caf50;
+    border-radius: 10px;
+  }
+  
+  .chat-messages::-webkit-scrollbar-thumb:hover {
+    background-color: #388e3c;
+  }
+  
+  /* Responsiveness */
+  @media screen and (max-width: 600px) {
+    .chat-container {
+      flex-direction: column;
+    }
+  
+    .sidebar {
+      width: 100%;
+      height: 60px;
+      flex-direction: row;
+      justify-content: space-around;
+      padding: 10px;
+      box-shadow: none;
+    }
+  
+    .chat-main {
+      width: 100%;
+      padding: 15px;
+    }
+  
+    button#sendChatBtn {
+      width: 100%;
+      margin-top: 10px;
+    }
+  
+    textarea {
+      width: 100%;
+      margin-bottom: 10px;
+    }
+  }
+  
